@@ -63,6 +63,45 @@ body {
   animation: cameraRecoil 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Photobooth mechanical printer dispenser animation */
+@keyframes printFromSlot {
+  0% {
+    transform: translateY(-88%) scale(0.95);
+    opacity: 0.1;
+    filter: brightness(0.85);
+  }
+  12% {
+    opacity: 1;
+  }
+  28% {
+    transform: translateY(-64%) scale(0.965);
+    filter: brightness(0.9);
+  }
+  52% {
+    transform: translateY(-40%) scale(0.98);
+    filter: brightness(0.95);
+  }
+  76% {
+    transform: translateY(-16%) scale(0.99);
+    filter: brightness(0.98);
+  }
+  92% {
+    transform: translateY(2.2%) scale(1.008);
+    filter: brightness(1);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+.animate-strip-print {
+  animation: printFromSlot 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform-origin: top center;
+  will-change: transform, opacity;
+}
+
 /* Shutter button press animation */
 .shutter-btn:active {
   transform: scale(0.92);

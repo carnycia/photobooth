@@ -195,6 +195,77 @@ function playThump(
 }
 
 /**
+ * Play authentic photobooth thermal printer feed motor & paper sound
+ */
+export function playPrinterSound() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
+
+    const now = ctx.currentTime;
+    const duration = 2.0;
+
+    // Stepper motor pitch hum
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.linearRampToValueAtTime(165, now + 0.4);
+    osc.frequency.linearRampToValueAtTime(145, now + 0.9);
+    osc.frequency.linearRampToValueAtTime(170, now + 1.5);
+    osc.frequency.linearRampToValueAtTime(130, now + duration);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(360, now);
+
+    oscGain.gain.setValueAtTime(0.001, now);
+    oscGain.gain.linearRampToValueAtTime(0.12, now + 0.05);
+    oscGain.gain.setValueAtTime(0.12, now + duration - 0.1);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    osc.connect(filter);
+    filter.connect(oscGain);
+    oscGain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + duration);
+
+    // Paper friction noise
+    const bufferSize = Math.floor(ctx.sampleRate * duration);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * 0.06;
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = "bandpass";
+    noiseFilter.frequency.setValueAtTime(900, now);
+    noiseFilter.Q.setValueAtTime(1.8, now);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.001, now);
+    noiseGain.gain.linearRampToValueAtTime(0.08, now + 0.06);
+    noiseGain.gain.setValueAtTime(0.08, now + duration - 0.1);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+
+    noise.start(now);
+    noise.stop(now + duration);
+  } catch {
+    // Ignore audio error
+  }
+}
+
+/**
  * Trigger vibration / haptic feedback
  * - Uses navigator.vibrate if supported (Android, desktop browsers)
  * - Also dispatches iOS haptic element tick for Safari
