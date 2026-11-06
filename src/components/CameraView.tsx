@@ -26,6 +26,7 @@ interface CameraViewProps {
   onShutterTap: () => void;
   onFlipCamera: () => void;
   onToggleSound: () => void;
+  onBackToFront?: () => void;
 }
 
 export function CameraView({
@@ -49,6 +50,7 @@ export function CameraView({
   onShutterTap,
   onFlipCamera,
   onToggleSound,
+  onBackToFront,
 }: CameraViewProps) {
   const isFront = facingMode === "user";
   const isSingleRetake = retakingIndex !== null && retakingIndex !== undefined;
@@ -170,64 +172,8 @@ export function CameraView({
         )}
       </div>
 
-      {/* Street Art Mirror Frame Overlay (from reference photo) */}
-      <div className="absolute inset-3 sm:inset-5 pointer-events-none rounded-3xl border-2 border-neutral-300/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.08)] z-20">
-        {/* Top-Left: Cyan & Yellow Spray Paint bursts */}
-        <div className="absolute -top-1 -left-1">
-          <span className="text-2xl filter drop-shadow-[0_0_8px_rgba(250,204,21,0.9)] animate-pulse">
-            ✦
-          </span>
-          <span className="absolute -bottom-3 -right-3 text-sm text-cyan-400 drop-shadow-[0_0_6px_rgba(6,182,212,0.8)]">
-            ✦
-          </span>
-        </div>
-
-        {/* Top-Right: Street Sticker "JOT" */}
-        <div className="absolute top-2 right-2 transform rotate-3">
-          <div className="px-2 py-0.5 rounded bg-lime-400 text-black font-black text-[9px] tracking-widest uppercase border border-black shadow-md">
-            JOT • 涂鸦
-          </div>
-        </div>
-
-        {/* Fisheye Mode Convex Mirror Stencil Tag ("NICE TO MEET" from reference photo) */}
-        {activeFilter === "fisheye" && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-black/70 border border-white/20 text-white font-mono font-black text-xs tracking-widest uppercase shadow-lg backdrop-blur-sm animate-in fade-in zoom-in-95">
-            NICE TO MEET
-          </div>
-        )}
-
-        {/* Bottom-Left: Iconic Dripping Red Spray Paint Tag "was here..." */}
-        <div className="absolute bottom-28 left-3 sm:left-4 transform -rotate-3 select-none">
-          <div className="relative">
-            <span
-              className="font-black italic text-3xl sm:text-4xl text-red-500 tracking-tight block drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]"
-              style={{
-                fontFamily: "'Brush Script MT', 'Impact', cursive, sans-serif",
-                textShadow: "0 0 10px #ef4444, 0 0 20px #dc2626",
-              }}
-            >
-              was here...
-            </span>
-            {/* Realistic Paint Drips SVG */}
-            <svg
-              className="absolute -bottom-5 left-1 w-36 h-6 text-red-500 overflow-visible filter drop-shadow-[0_0_6px_rgba(239,68,68,0.8)]"
-              viewBox="0 0 140 24"
-              fill="currentColor"
-            >
-              <path d="M 8 0 L 9 14 A 2.5 2.5 0 0 0 14 14 L 15 0 Z" />
-              <path d="M 38 0 L 39 20 A 3 3 0 0 0 45 20 L 46 0 Z" />
-              <path d="M 68 0 L 69 11 A 2 2 0 0 0 73 11 L 74 0 Z" />
-              <path d="M 94 0 L 95 22 A 3.5 3.5 0 0 0 102 22 L 103 0 Z" />
-              <path d="M 124 0 L 125 15 A 2.5 2.5 0 0 0 130 15 L 131 0 Z" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Bottom-Right: Blue star */}
-        <div className="absolute bottom-32 right-3 text-blue-500 text-lg filter drop-shadow-[0_0_8px_rgba(59,130,246,0.9)]">
-          ✦
-        </div>
-      </div>
+      {/* Mirror Frame Border Overlay */}
+      <div className="absolute inset-3 sm:inset-5 pointer-events-none rounded-3xl border-2 border-neutral-300/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.08)] z-20" />
 
       {/* Screen White Flash Overlay */}
       {isFlashing && (
@@ -239,7 +185,7 @@ export function CameraView({
 
       {/* Top Safe Area Bar */}
       <div className="relative z-30 w-full pt-safe px-5 flex items-center justify-between">
-        {/* Left Side: Cancel button in retake mode, or Sound toggle */}
+        {/* Left Side: Go back to front screen, Cancel button in retake mode, or Sound toggle */}
         {isSingleRetake ? (
           <button
             onClick={onCancelRetake}
@@ -253,6 +199,20 @@ export function CameraView({
           </button>
         ) : (
           <div className="flex items-center gap-2">
+            {onBackToFront && (
+              <button
+                onClick={onBackToFront}
+                disabled={isTakingPhotos}
+                aria-label="Go back to the front"
+                className="h-10 px-3.5 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-xs font-black text-white hover:text-amber-300 flex items-center gap-1.5 active:scale-95 transition-all shadow-lg cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Front</span>
+              </button>
+            )}
+
             <button
               onClick={onToggleSound}
               disabled={isTakingPhotos}
@@ -369,15 +329,6 @@ export function CameraView({
             );
           })}
         </div>
-
-        {/* Helper instruction tooltip when idle */}
-        {!isTakingPhotos && (
-          <p className="text-white/90 text-[10px] font-black tracking-widest uppercase mb-3.5 backdrop-blur-sm bg-neutral-900/80 px-3 py-1 rounded-full border border-white/15">
-            {isSingleRetake
-              ? `Tap shutter to retake Shot ${retakingIndex + 1}`
-              : "Tap shutter to shoot 4 photos"}
-          </p>
-        )}
 
         <div className="w-full flex items-center justify-between max-w-sm mb-2">
           {/* Left: Gallery button showing latest strip thumbnail or photos icon */}

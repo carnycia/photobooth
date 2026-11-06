@@ -581,6 +581,7 @@ export default function PhotoBoothApp() {
           onShutterTap={startPhotoBoothSequence}
           onFlipCamera={handleFlipCamera}
           onToggleSound={() => setSoundEnabled((prev) => !prev)}
+          onBackToFront={() => setIsLoadingScreenVisible(true)}
         />
       )}
 
