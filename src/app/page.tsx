@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { CameraView } from "@/components/CameraView";
 import { ResultsView } from "@/components/ResultsView";
 import { GalleryView } from "@/components/GalleryView";
@@ -24,6 +25,11 @@ import {
   deleteSavedStrip,
   clearAllSavedStrips,
 } from "@/lib/gallery-db";
+
+const Agentation = dynamic(
+  () => import("agentation").then((mod) => mod.Agentation),
+  { ssr: false }
+);
 
 export default function PhotoBoothApp() {
   // Camera & permission states
@@ -577,6 +583,12 @@ export default function PhotoBoothApp() {
           onToggleSound={() => setSoundEnabled((prev) => !prev)}
         />
       )}
+
+      {/* Visual Feedback & Element Annotation Tool */}
+      <Agentation
+        appName="PhotoBooth"
+        onCopy={() => showToast("Annotations copied to clipboard! Paste here.")}
+      />
     </div>
   );
 }
