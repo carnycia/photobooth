@@ -195,7 +195,7 @@ export default function PhotoBoothApp() {
     setStripBlob(cachedStripBlob);
   };
 
-  // Capture current video frame into high-res data URL
+  // Capture current video frame into low-res digicam data URL
   const captureCurrentFrame = (): string => {
     if (isDemoMode) {
       return generateDemoFrame(demoFrameIndex);
@@ -220,12 +220,31 @@ export default function PhotoBoothApp() {
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+    let processedCanvas = canvas;
     if (activeFilter === "fisheye") {
-      const fisheyeCanvas = applyFisheyeToImage(canvas, canvas.width, canvas.height);
-      return fisheyeCanvas.toDataURL("image/jpeg", 0.95);
+      processedCanvas = applyFisheyeToImage(canvas, canvas.width, canvas.height);
     }
 
-    return canvas.toDataURL("image/jpeg", 0.95);
+    // Authentic 2000s low-res digicam downscale (320px)
+    const lowW = 320;
+    const lowH = Math.round((processedCanvas.height / processedCanvas.width) * lowW);
+    const lowCanvas = document.createElement("canvas");
+    lowCanvas.width = lowW;
+    lowCanvas.height = lowH;
+    const lowCtx = lowCanvas.getContext("2d");
+    if (!lowCtx) return processedCanvas.toDataURL("image/jpeg", 0.9);
+    lowCtx.drawImage(processedCanvas, 0, 0, lowW, lowH);
+
+    // Nearest-neighbor upscale back to strip dimensions with crisp pixelation
+    const finalCanvas = document.createElement("canvas");
+    finalCanvas.width = processedCanvas.width;
+    finalCanvas.height = processedCanvas.height;
+    const finalCtx = finalCanvas.getContext("2d");
+    if (!finalCtx) return lowCanvas.toDataURL("image/jpeg", 0.9);
+    finalCtx.imageSmoothingEnabled = false;
+    finalCtx.drawImage(lowCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
+
+    return finalCanvas.toDataURL("image/jpeg", 0.9);
   };
 
   // Sequence to take photos (either full 4 shots or single retake)
