@@ -131,8 +131,8 @@ export function LoadingScreen({
               {/* Artwork Tile */}
               <div className="w-full aspect-square rounded-[4px] bg-gradient-to-tr from-neutral-900 via-neutral-800 to-neutral-700 border border-neutral-300 shadow-md overflow-hidden flex flex-col items-center justify-center p-1 text-center">
                 <span className="text-2xl sm:text-3xl drop-shadow-sm">📸</span>
-                <span className="text-[7.5px] sm:text-[9px] font-black text-amber-300 tracking-wider uppercase leading-none mt-1">
-                  JOT • 涂鸦
+                <span className="text-[7px] sm:text-[8.5px] font-black text-white/90 tracking-wider uppercase leading-none mt-1">
+                  PHOTO BOOTH
                 </span>
               </div>
               {/* Cover Flow Mirror Reflection */}
@@ -148,7 +148,7 @@ export function LoadingScreen({
                 Photo Booth
               </span>
               <span className="text-[9.5px] sm:text-[11px] font-semibold text-neutral-600 truncate mt-0.5">
-                JOT Studio
+                Camera Ready
               </span>
               <span className="text-[9px] sm:text-[10.5px] font-bold text-blue-600 truncate mt-1 animate-pulse">
                 {isReady ? "Press Center ↵" : "Warming Up..."}
