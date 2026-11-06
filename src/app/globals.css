@@ -40,6 +40,29 @@ body {
   animation: cameraFlash 220ms ease-out forwards;
 }
 
+/* Screen recoil / haptic shake on snapshot */
+@keyframes cameraRecoil {
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(0.978) translateY(3px);
+  }
+  50% {
+    transform: scale(1.012) translateY(-2px);
+  }
+  80% {
+    transform: scale(0.995) translateY(1px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-camera-recoil {
+  animation: cameraRecoil 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 /* Shutter button press animation */
 .shutter-btn:active {
   transform: scale(0.92);

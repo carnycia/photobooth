@@ -37,8 +37,22 @@ export function CameraView({
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden flex flex-col justify-between select-none">
-      {/* Background Video Viewfinder */}
-      <div className="absolute inset-0 w-full h-full overflow-hidden bg-black flex items-center justify-center">
+      {/* Hidden helper for iOS Safari haptic switch event */}
+      <input
+        type="checkbox"
+        id="ios-haptic-trigger"
+        className="sr-only pointer-events-none"
+        tabIndex={-1}
+        aria-hidden="true"
+        readOnly
+      />
+
+      {/* Background Video Viewfinder with Recoil Shake on Snap */}
+      <div
+        className={`absolute inset-0 w-full h-full overflow-hidden bg-black flex items-center justify-center transition-transform duration-75 ${
+          isFlashing ? "animate-camera-recoil" : ""
+        }`}
+      >
         {isDemoMode ? (
           <div
             className={`w-full h-full flex flex-col items-center justify-center transition-colors duration-500 ${

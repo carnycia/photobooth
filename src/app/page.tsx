@@ -6,7 +6,12 @@ import { ResultsView } from "@/components/ResultsView";
 import { PermissionDeniedView } from "@/components/PermissionDeniedView";
 import { Toast } from "@/components/Toast";
 import { createPhotoStrip, StripFilter } from "@/lib/photostrip";
-import { playCountdownBeep, playShutterSound } from "@/lib/sounds";
+import {
+  playCountdownBeep,
+  playShutterSound,
+  unlockAudio,
+  triggerHapticVibration,
+} from "@/lib/sounds";
 import { generateDemoFrame } from "@/lib/demomode";
 
 export default function PhotoBoothApp() {
@@ -169,6 +174,9 @@ export default function PhotoBoothApp() {
   const startPhotoBoothSequence = async () => {
     if (isTakingPhotos) return;
 
+    // Immediately unlock Web Audio API in the user gesture call stack (required for iOS Safari)
+    unlockAudio();
+
     setIsTakingPhotos(true);
     setCapturedPhotos([]);
     const photos: string[] = [];
@@ -182,28 +190,24 @@ export default function PhotoBoothApp() {
         setDemoFrameIndex(i);
       }
 
-      // 3-2-1 Countdown
+      // 3-2-1 Countdown with crisp audible beeps
       setCountdown(3);
-      if (soundEnabled) playCountdownBeep(false);
+      if (soundEnabled) playCountdownBeep(3);
       await wait(1000);
 
       setCountdown(2);
-      if (soundEnabled) playCountdownBeep(false);
+      if (soundEnabled) playCountdownBeep(2);
       await wait(1000);
 
       setCountdown(1);
-      if (soundEnabled) playCountdownBeep(false);
+      if (soundEnabled) playCountdownBeep(1);
       await wait(1000);
 
-      // SNAP! Flash screen and take photo
+      // SNAP! Flash screen, play shutter sound, trigger vibration
       setCountdown(null);
       setIsFlashing(true);
       if (soundEnabled) playShutterSound();
-
-      // Haptic vibration feedback if supported
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(60);
-      }
+      triggerHapticVibration();
 
       const photoDataUrl = captureCurrentFrame();
       photos.push(photoDataUrl);
