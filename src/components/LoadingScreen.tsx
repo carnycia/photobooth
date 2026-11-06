@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { unlockAudio, playSprayCanShake, triggerHapticVibration } from "@/lib/sounds";
 
 interface LoadingScreenProps {
   onComplete?: () => void;
@@ -15,55 +16,84 @@ export function LoadingScreen({
   hasPermission,
   message,
 }: LoadingScreenProps) {
-  const [progress, setProgress] = useState(12);
+  const [progress, setProgress] = useState(15);
   const [statusText, setStatusText] = useState("CALIBRATING CONVEX MIRRORS...");
+  const [isReady, setIsReady] = useState(false);
   const [showDemoOption, setShowDemoOption] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
+  // Progressive calibration stages
   useEffect(() => {
-    // Stage 1: Initial calibration
     const t1 = setTimeout(() => {
-      setProgress(45);
+      setProgress(50);
       setStatusText("WARMING UP NEON FLASH...");
-    }, 400);
+    }, 350);
 
-    // Stage 2: Camera readying
     const t2 = setTimeout(() => {
-      setProgress(78);
-      setStatusText("ENTERING RED MIRROR STUDIO...");
-    }, 900);
+      setProgress(85);
+      setStatusText("TUNING FISHEYE LENSES...");
+    }, 700);
 
-    // If camera takes longer than 2.5s, surface quick demo switch option
+    const t3 = setTimeout(() => {
+      setProgress(100);
+      setStatusText("STUDIO READY • PRESS ENTER");
+      setIsReady(true);
+    }, 1100);
+
+    // If on a device without camera or if camera takes long, show demo switch
     const tDemo = setTimeout(() => {
       setShowDemoOption(true);
-    }, 2500);
+    }, 2800);
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
       clearTimeout(tDemo);
     };
   }, []);
 
-  // When camera permission resolves, finish progress and trigger exit fade
+  // Update status when permission changes
   useEffect(() => {
-    if (hasPermission !== null) {
+    if (hasPermission === true) {
       setProgress(100);
-      setStatusText(hasPermission ? "STUDIO READY • ENTERING" : "CAMERA REQUIRES PERMISSION");
-      const exitTimer = setTimeout(() => {
-        setIsFadingOut(true);
-        const completeTimer = setTimeout(() => {
-          if (onComplete) onComplete();
-        }, 650);
-        return () => clearTimeout(completeTimer);
-      }, 450);
-      return () => clearTimeout(exitTimer);
+      setStatusText("CAMERA CONNECTED • PRESS ENTER");
+      setIsReady(true);
+    } else if (hasPermission === false) {
+      setStatusText("CAMERA PERMISSION NEEDED");
+      setIsReady(true);
     }
-  }, [hasPermission, onComplete]);
+  }, [hasPermission]);
+
+  // Handle Enter action (click, touch, or Enter key)
+  const handleEnter = useCallback(() => {
+    if (isFadingOut) return;
+
+    unlockAudio();
+    playSprayCanShake();
+    triggerHapticVibration();
+
+    setIsFadingOut(true);
+    setTimeout(() => {
+      if (onComplete) onComplete();
+    }, 600);
+  }, [isFadingOut, onComplete]);
+
+  // Listen for Enter or Spacebar keypress
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleEnter();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleEnter]);
 
   return (
     <div
-      className={`fixed inset-0 z-50 w-full h-full bg-black overflow-hidden select-none transition-opacity duration-700 ease-out ${
+      className={`fixed inset-0 z-50 w-full h-full bg-black overflow-hidden select-none transition-opacity duration-600 ease-out ${
         isFadingOut ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
     >
@@ -106,15 +136,18 @@ export function LoadingScreen({
           </div>
         </div>
 
-        {/* Center: Stylized Convex Mirror Aperture & Stencil */}
+        {/* Center: Stylized Convex Mirror Aperture (Interactive on tap) */}
         <div className="flex flex-col items-center justify-center my-auto">
-          {/* Circular Convex Mirror Graphic */}
-          <div className="relative w-44 h-44 sm:w-52 sm:h-52 rounded-full p-2 bg-gradient-to-tr from-neutral-800 via-neutral-600 to-neutral-900 border-3 border-neutral-400/80 shadow-[0_0_50px_rgba(239,68,68,0.7),inset_0_0_25px_rgba(0,0,0,0.9)] flex items-center justify-center">
+          <button
+            onClick={handleEnter}
+            aria-label="Tap mirror to enter booth"
+            className="group relative w-44 h-44 sm:w-52 sm:h-52 rounded-full p-2 bg-gradient-to-tr from-neutral-800 via-neutral-600 to-neutral-900 border-3 border-neutral-400/80 shadow-[0_0_50px_rgba(239,68,68,0.7),inset_0_0_25px_rgba(0,0,0,0.9)] flex items-center justify-center cursor-pointer transition-transform duration-200 active:scale-95 focus:outline-none"
+          >
             {/* Mirror Bezel Highlight */}
-            <div className="absolute inset-1 rounded-full border border-white/40 pointer-events-none" />
+            <div className="absolute inset-1 rounded-full border border-white/40 pointer-events-none group-hover:border-white/70 transition-colors" />
 
             {/* Inner Red Convex Reflection Glow */}
-            <div className="relative w-full h-full rounded-full overflow-hidden bg-gradient-to-b from-red-600/30 via-red-900/50 to-black flex flex-col items-center justify-center shadow-[inset_0_0_30px_rgba(0,0,0,0.9)]">
+            <div className="relative w-full h-full rounded-full overflow-hidden bg-gradient-to-b from-red-600/30 via-red-900/50 to-black flex flex-col items-center justify-center shadow-[inset_0_0_30px_rgba(0,0,0,0.9)] group-hover:from-red-600/40 transition-all">
               {/* Convex Mirror curved sheen */}
               <div className="absolute -top-12 -left-12 w-48 h-48 rounded-full bg-white/15 blur-md pointer-events-none transform rotate-12" />
 
@@ -123,7 +156,7 @@ export function LoadingScreen({
                 <span className="text-[10px] sm:text-xs font-mono font-black text-white/90 tracking-[0.3em] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   NICE TO MEET
                 </span>
-                <span className="text-3xl sm:text-4xl my-1 animate-pulse filter drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]">
+                <span className="text-3xl sm:text-4xl my-1 animate-pulse filter drop-shadow-[0_0_12px_rgba(239,68,68,0.9)] group-hover:scale-110 transition-transform">
                   🪞
                 </span>
                 <span className="text-[9px] font-mono text-red-300/80 tracking-widest uppercase">
@@ -132,20 +165,23 @@ export function LoadingScreen({
               </div>
 
               {/* Pulsing Aperture Ring */}
-              <div className="absolute inset-3 rounded-full border border-dashed border-red-500/40 animate-spin" style={{ animationDuration: "16s" }} />
+              <div
+                className="absolute inset-3 rounded-full border border-dashed border-red-500/40 animate-spin pointer-events-none"
+                style={{ animationDuration: "16s" }}
+              />
             </div>
 
             {/* Corner Spray Star Bursts */}
-            <div className="absolute -top-3 -right-3 text-amber-300 text-xl drop-shadow-[0_0_8px_rgba(252,211,77,0.9)] animate-pulse">
+            <div className="absolute -top-3 -right-3 text-amber-300 text-xl drop-shadow-[0_0_8px_rgba(252,211,77,0.9)] animate-pulse pointer-events-none">
               ✦
             </div>
-            <div className="absolute -bottom-2 -left-2 text-cyan-400 text-base drop-shadow-[0_0_8px_rgba(34,211,238,0.9)]">
+            <div className="absolute -bottom-2 -left-2 text-cyan-400 text-base drop-shadow-[0_0_8px_rgba(34,211,238,0.9)] pointer-events-none">
               ✦
             </div>
-          </div>
+          </button>
 
           {/* Dripping "was here..." Tag below the mirror */}
-          <div className="relative mt-4 transform -rotate-3 select-none">
+          <div className="relative mt-4 transform -rotate-3 select-none pointer-events-none">
             <span
               className="font-black italic text-3xl sm:text-4xl text-red-500 tracking-tight block drop-shadow-[0_0_14px_rgba(239,68,68,1)]"
               style={{
@@ -185,7 +221,7 @@ export function LoadingScreen({
           </div>
 
           {/* Loading Progress Bar */}
-          <div className="relative w-full h-2.5 rounded-full bg-black/80 border border-red-900/60 overflow-hidden shadow-inner p-0.5">
+          <div className="relative w-full h-2 rounded-full bg-black/80 border border-red-900/60 overflow-hidden shadow-inner p-0.5">
             <div
               className="h-full rounded-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-400 transition-all duration-300 ease-out shadow-[0_0_12px_rgba(244,63,94,0.8)]"
               style={{ width: `${progress}%` }}
@@ -201,11 +237,29 @@ export function LoadingScreen({
             <span className="text-neutral-500">JOT • 2026</span>
           </div>
 
+          {/* Primary ENTER Button (Stays until pressed) */}
+          <div className="mt-1">
+            <button
+              onClick={handleEnter}
+              className={`w-full py-3.5 px-6 rounded-2xl font-black text-sm uppercase tracking-widest border-2 transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer active:scale-95 shadow-xl ${
+                isReady
+                  ? "bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-500 hover:to-rose-500 text-white border-white/30 shadow-[0_0_30px_rgba(239,68,68,0.9)] animate-pulse"
+                  : "bg-neutral-900 text-neutral-400 border-white/10"
+              }`}
+            >
+              <span>{isReady ? "ENTER BOOTH" : "CALIBRATING..."}</span>
+              <span className="text-base">{isReady ? "🪞" : "⏳"}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-black/50 border border-white/20 font-mono text-neutral-300 normal-case">
+                Press Enter ↵
+              </span>
+            </button>
+          </div>
+
           {/* Fallback / Quick Start for desktop or denied permissions */}
           {showDemoOption && hasPermission === null && onUseDemo && (
             <button
               onClick={onUseDemo}
-              className="mt-1 py-2 px-4 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 text-amber-300 border border-amber-400/40 text-xs font-black tracking-wider uppercase transition-all shadow-lg active:scale-95"
+              className="mt-0.5 py-2 px-4 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 text-amber-300 border border-amber-400/40 text-xs font-black tracking-wider uppercase transition-all shadow-lg active:scale-95"
             >
               Camera taking a while? Switch to Demo Mode 📷
             </button>
