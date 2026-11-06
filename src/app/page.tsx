@@ -32,6 +32,11 @@ export default function PhotoBoothApp() {
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
+  // Single photo retake state
+  const [retakingIndex, setRetakingIndex] = useState<number | null>(null);
+  const [cachedStripUrl, setCachedStripUrl] = useState<string | null>(null);
+  const [cachedStripBlob, setCachedStripBlob] = useState<Blob | null>(null);
+
   // Results & strip states
   const [stripUrl, setStripUrl] = useState<string | null>(null);
   const [stripBlob, setStripBlob] = useState<Blob | null>(null);
@@ -87,11 +92,10 @@ export default function PhotoBoothApp() {
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          // Play stream explicitly for iOS Safari
           try {
             await videoRef.current.play();
           } catch {
-            // auto-play handle
+            // Auto-play handle
           }
         }
       } catch (err: unknown) {
@@ -143,6 +147,25 @@ export default function PhotoBoothApp() {
     showToast("Switched to Demo Camera");
   };
 
+  // Start single photo retake mode
+  const handleStartSingleRetake = (index: number) => {
+    setRetakingIndex(index);
+    setCachedStripUrl(stripUrl);
+    setCachedStripBlob(stripBlob);
+    setStripUrl(null);
+    if (isDemoMode) {
+      setDemoFrameIndex(index);
+    }
+    showToast(`Position for Shot ${index + 1}`);
+  };
+
+  // Cancel single photo retake mode
+  const handleCancelSingleRetake = () => {
+    setRetakingIndex(null);
+    setStripUrl(cachedStripUrl);
+    setStripBlob(cachedStripBlob);
+  };
+
   // Capture current video frame into high-res data URL
   const captureCurrentFrame = (): string => {
     if (isDemoMode) {
@@ -170,19 +193,74 @@ export default function PhotoBoothApp() {
     return canvas.toDataURL("image/jpeg", 0.95);
   };
 
-  // Sequence to take 4 photos in a row
+  // Sequence to take photos (either full 4 shots or single retake)
   const startPhotoBoothSequence = async () => {
     if (isTakingPhotos) return;
 
     // Immediately unlock Web Audio API in the user gesture call stack (required for iOS Safari)
     unlockAudio();
-
     setIsTakingPhotos(true);
+
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // MODE A: Retaking just one single photo
+    if (retakingIndex !== null) {
+      const targetIdx = retakingIndex;
+      setCurrentPhotoIndex(targetIdx);
+      if (isDemoMode) {
+        setDemoFrameIndex(targetIdx);
+      }
+
+      // 3-2-1 Countdown with audible beeps
+      setCountdown(3);
+      if (soundEnabled) playCountdownBeep(3);
+      await wait(1000);
+
+      setCountdown(2);
+      if (soundEnabled) playCountdownBeep(2);
+      await wait(1000);
+
+      setCountdown(1);
+      if (soundEnabled) playCountdownBeep(1);
+      await wait(1000);
+
+      // SNAP!
+      setCountdown(null);
+      setIsFlashing(true);
+      if (soundEnabled) playShutterSound();
+      triggerHapticVibration();
+
+      const newPhotoUrl = captureCurrentFrame();
+      const updatedPhotos = [...capturedPhotos];
+      updatedPhotos[targetIdx] = newPhotoUrl;
+      setCapturedPhotos(updatedPhotos);
+
+      await wait(180);
+      setIsFlashing(false);
+      setIsTakingPhotos(false);
+      setRetakingIndex(null);
+
+      // Re-generate photo strip with the updated photo
+      setIsGeneratingStrip(true);
+      try {
+        const { dataUrl, blob } = await createPhotoStrip(updatedPhotos, {
+          filter: activeFilter,
+        });
+        setStripUrl(dataUrl);
+        setStripBlob(blob);
+        showToast(`Shot ${targetIdx + 1} updated!`);
+      } catch (err) {
+        console.error("Failed regenerating strip:", err);
+        showToast("Error updating photo strip");
+      } finally {
+        setIsGeneratingStrip(false);
+      }
+      return;
+    }
+
+    // MODE B: Full 4-shot photo booth sequence
     setCapturedPhotos([]);
     const photos: string[] = [];
-
-    // Helper sleep
-    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
     for (let i = 0; i < 4; i++) {
       setCurrentPhotoIndex(i);
@@ -286,7 +364,6 @@ export default function PhotoBoothApp() {
       } catch (err: unknown) {
         const error = err as { name?: string };
         if (error.name === "AbortError") {
-          // User closed share sheet without saving, do not treat as error
           return;
         }
         console.warn("Share failed, falling back to download:", error);
@@ -308,11 +385,12 @@ export default function PhotoBoothApp() {
     }
   };
 
-  // Retake: return to camera
-  const handleRetake = () => {
+  // Retake all: return to camera
+  const handleRetakeAll = () => {
     setCapturedPhotos([]);
     setStripUrl(null);
     setStripBlob(null);
+    setRetakingIndex(null);
     setIsTakingPhotos(false);
     setCountdown(null);
     setCurrentPhotoIndex(0);
@@ -342,7 +420,8 @@ export default function PhotoBoothApp() {
           isGenerating={isGeneratingStrip}
           onFilterChange={handleFilterChange}
           onSave={handleSave}
-          onRetake={handleRetake}
+          onRetake={handleRetakeAll}
+          onRetakeSinglePhoto={handleStartSingleRetake}
         />
       )}
 
@@ -359,6 +438,8 @@ export default function PhotoBoothApp() {
           soundEnabled={soundEnabled}
           isDemoMode={isDemoMode}
           demoFrameIndex={demoFrameIndex}
+          retakingIndex={retakingIndex}
+          onCancelRetake={handleCancelSingleRetake}
           onShutterTap={startPhotoBoothSequence}
           onFlipCamera={handleFlipCamera}
           onToggleSound={() => setSoundEnabled((prev) => !prev)}
