@@ -9,10 +9,12 @@ interface ResultsViewProps {
   stripUrl: string | null;
   activeFilter: CameraFilter | StripFilter;
   activeTheme?: StripTheme;
+  isSquished?: boolean;
   isGenerating: boolean;
   galleryCount?: number;
   onFilterChange: (filter: CameraFilter) => void;
   onThemeChange?: (theme: StripTheme) => void;
+  onToggleSquish?: (squished: boolean) => void;
   onSave: () => void;
   onRetake: () => void;
   onRetakeSinglePhoto: (index: number) => void;
@@ -23,10 +25,12 @@ export function ResultsView({
   stripUrl,
   activeFilter,
   activeTheme = "graffiti",
+  isSquished = true,
   isGenerating,
   galleryCount = 0,
   onFilterChange,
   onThemeChange,
+  onToggleSquish,
   onSave,
   onRetake,
   onRetakeSinglePhoto,
@@ -47,13 +51,20 @@ export function ResultsView({
     }
   }, [stripUrl, isGenerating]);
 
-  // Coordinates of the 4 photos inside the vertical strip (squished 320:420 aspect ratio)
-  const photoSlots = [
-    { index: 0, top: "1.01%", height: "22.89%" },
-    { index: 1, top: "24.51%", height: "22.89%" },
-    { index: 2, top: "48.02%", height: "22.89%" },
-    { index: 3, top: "71.52%", height: "22.89%" },
-  ];
+  // Coordinates of the 4 photos inside the vertical strip
+  const photoSlots = isSquished
+    ? [
+        { index: 0, top: "1.01%", height: "22.89%" },
+        { index: 1, top: "24.51%", height: "22.89%" },
+        { index: 2, top: "48.02%", height: "22.89%" },
+        { index: 3, top: "71.52%", height: "22.89%" },
+      ]
+    : [
+        { index: 0, top: "1.72%", height: "21.41%" },
+        { index: 1, top: "24.17%", height: "21.41%" },
+        { index: 2, top: "46.62%", height: "21.41%" },
+        { index: 3, top: "69.07%", height: "21.41%" },
+      ];
 
   return (
     <div className="relative w-full h-full min-h-screen bg-neutral-950 text-white flex flex-col justify-between overflow-hidden select-none">
@@ -227,6 +238,32 @@ export function ResultsView({
               </button>
             ))}
           </div>
+
+          {/* Squish / Unsquish Mode Toggle */}
+          {onToggleSquish && (
+            <div className="flex items-center gap-1 p-0.5 rounded-full bg-black/60 border border-white/10 text-[10px]">
+              <button
+                onClick={() => onToggleSquish(true)}
+                className={`px-3 py-1 rounded-full font-black uppercase transition-all cursor-pointer ${
+                  isSquished
+                    ? "bg-amber-400 text-black shadow-sm font-black"
+                    : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                📼 Squished
+              </button>
+              <button
+                onClick={() => onToggleSquish(false)}
+                className={`px-3 py-1 rounded-full font-black uppercase transition-all cursor-pointer ${
+                  !isSquished
+                    ? "bg-amber-400 text-black shadow-sm font-black"
+                    : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                📸 Unsquish
+              </button>
+            </div>
+          )}
 
           {/* Border Theme Toggle: Graffiti Studio vs Classic */}
           {onThemeChange && (

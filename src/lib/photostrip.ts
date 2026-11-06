@@ -9,6 +9,7 @@ export type StripTheme = "graffiti" | "classic";
 export interface StripOptions {
   filter?: StripFilter;
   theme?: StripTheme;
+  isSquished?: boolean;
   dateText?: string;
   title?: string;
 }
@@ -20,6 +21,7 @@ export async function createPhotoStrip(
   const {
     filter = "original",
     theme = "graffiti",
+    isSquished = true,
     dateText = formatDefaultDate(new Date()),
     title = "PHOTO BOOTH",
   } = options;
@@ -45,7 +47,9 @@ export async function createPhotoStrip(
   const photoGap = 34;
 
   const photoWidth = stripWidth - outerMarginX * 2; // 968px
-  const photoHeight = Math.round(photoWidth * (420 / 320)); // 1270px (exact squished 320:420 preview aspect ratio)
+  const photoHeight = isSquished
+    ? Math.round(photoWidth * (420 / 320)) // 1270px (squished 320:420 aspect ratio)
+    : Math.round(photoWidth * 0.72);       // 697px (unsquished standard 4:3 aspect ratio)
 
   const photosTotalHeight =
     images.length * photoHeight + (images.length - 1) * photoGap;
@@ -67,7 +71,7 @@ export async function createPhotoStrip(
     context.filter = getFilterCss(f);
   }
 
-  // Draw each photo (exact squished preview representation)
+  // Draw each photo (squished or unsquished)
   images.forEach((img, i) => {
     const photoY = outerMarginTop + i * (photoHeight + photoGap);
 
@@ -78,20 +82,26 @@ export async function createPhotoStrip(
     ctx.clip();
 
     if (filter === "fisheye") {
-      // Draw squished onto temp canvas, then run fisheye barrel distortion
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = photoWidth;
       tempCanvas.height = photoHeight;
       const tCtx = tempCanvas.getContext("2d");
       if (tCtx) {
-        tCtx.drawImage(img, 0, 0, photoWidth, photoHeight);
+        if (isSquished) {
+          tCtx.drawImage(img, 0, 0, photoWidth, photoHeight);
+        } else {
+          drawImageProp(tCtx, img, 0, 0, photoWidth, photoHeight);
+        }
         const fisheyeCanvas = applyFisheyeToImage(tempCanvas, photoWidth, photoHeight);
         ctx.drawImage(fisheyeCanvas, outerMarginX, photoY, photoWidth, photoHeight);
       }
     } else {
       applyCanvasFilter(ctx, filter);
-      // Draw the exact squished frame into the slot
-      ctx.drawImage(img, outerMarginX, photoY, photoWidth, photoHeight);
+      if (isSquished) {
+        ctx.drawImage(img, outerMarginX, photoY, photoWidth, photoHeight);
+      } else {
+        drawImageProp(ctx, img, outerMarginX, photoY, photoWidth, photoHeight);
+      }
     }
 
     ctx.restore();

@@ -48,6 +48,8 @@ export default function PhotoBoothApp() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isFlashing, setIsFlashing] = useState(false);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
+  const [rawCapturedPhotos, setRawCapturedPhotos] = useState<string[]>([]);
+  const [isSquished, setIsSquished] = useState<boolean>(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Single photo retake state
@@ -195,8 +197,8 @@ export default function PhotoBoothApp() {
     setStripBlob(cachedStripBlob);
   };
 
-  // Capture current video frame into exact squished low-res preview format (320x420)
-  const captureCurrentFrame = (): string => {
+  // Capture current video frame into either squished (320x420) or raw unsquished data URL
+  const captureCurrentFrame = (squished: boolean = true): string => {
     if (isDemoMode) {
       return generateDemoFrame(demoFrameIndex);
     }
@@ -206,10 +208,15 @@ export default function PhotoBoothApp() {
       return generateDemoFrame(demoFrameIndex);
     }
 
-    // Exact 320x420 canvas matching the preview dimensions and squish
     const canvas = document.createElement("canvas");
-    canvas.width = 320;
-    canvas.height = 420;
+    if (squished) {
+      canvas.width = 320;
+      canvas.height = 420;
+    } else {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return "";
 
@@ -219,7 +226,6 @@ export default function PhotoBoothApp() {
       ctx.scale(-1, 1);
     }
 
-    // Directly draw and squish the video into 320x420 matching the live preview
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     let processedCanvas = canvas;
@@ -266,10 +272,14 @@ export default function PhotoBoothApp() {
       if (soundEnabled) playShutterSound();
       triggerHapticVibration();
 
-      const newPhotoUrl = captureCurrentFrame();
-      const updatedPhotos = [...capturedPhotos];
-      updatedPhotos[targetIdx] = newPhotoUrl;
-      setCapturedPhotos(updatedPhotos);
+      const newSquished = captureCurrentFrame(true);
+      const newRaw = captureCurrentFrame(false);
+      const updatedSquished = [...capturedPhotos];
+      const updatedRaw = [...rawCapturedPhotos];
+      updatedSquished[targetIdx] = newSquished;
+      updatedRaw[targetIdx] = newRaw;
+      setCapturedPhotos(updatedSquished);
+      setRawCapturedPhotos(updatedRaw);
 
       await wait(180);
       setIsFlashing(false);
@@ -279,15 +289,17 @@ export default function PhotoBoothApp() {
       // Re-generate photo strip with the updated photo
       setIsGeneratingStrip(true);
       try {
-        const { dataUrl, blob } = await createPhotoStrip(updatedPhotos, {
+        const photosToUse = isSquished ? updatedSquished : updatedRaw;
+        const { dataUrl, blob } = await createPhotoStrip(photosToUse, {
           filter: activeFilter,
           theme: activeTheme,
+          isSquished,
         });
         setStripUrl(dataUrl);
         setStripBlob(blob);
 
         // Save updated strip to gallery
-        saveStripToGallery(dataUrl, updatedPhotos, activeFilter)
+        saveStripToGallery(dataUrl, photosToUse, activeFilter)
           .then((saved) => setGalleryStrips((prev) => [saved, ...prev]))
           .catch(console.warn);
 
@@ -303,7 +315,9 @@ export default function PhotoBoothApp() {
 
     // MODE B: Full 4-shot photo booth sequence
     setCapturedPhotos([]);
+    setRawCapturedPhotos([]);
     const photos: string[] = [];
+    const rawPhotos: string[] = [];
 
     for (let i = 0; i < 4; i++) {
       setCurrentPhotoIndex(i);
@@ -328,9 +342,12 @@ export default function PhotoBoothApp() {
       if (soundEnabled) playShutterSound();
       triggerHapticVibration();
 
-      const photoDataUrl = captureCurrentFrame();
-      photos.push(photoDataUrl);
+      const squishedUrl = captureCurrentFrame(true);
+      const rawUrl = captureCurrentFrame(false);
+      photos.push(squishedUrl);
+      rawPhotos.push(rawUrl);
       setCapturedPhotos([...photos]);
+      setRawCapturedPhotos([...rawPhotos]);
 
       await wait(180);
       setIsFlashing(false);
@@ -345,15 +362,17 @@ export default function PhotoBoothApp() {
     setIsGeneratingStrip(true);
 
     try {
-      const { dataUrl, blob } = await createPhotoStrip(photos, {
+      const photosToUse = isSquished ? photos : rawPhotos;
+      const { dataUrl, blob } = await createPhotoStrip(photosToUse, {
         filter: activeFilter,
         theme: activeTheme,
+        isSquished,
       });
       setStripUrl(dataUrl);
       setStripBlob(blob);
 
       // Save to gallery
-      saveStripToGallery(dataUrl, photos, activeFilter)
+      saveStripToGallery(dataUrl, photosToUse, activeFilter)
         .then((saved) => setGalleryStrips((prev) => [saved, ...prev]))
         .catch(console.warn);
 
@@ -369,18 +388,20 @@ export default function PhotoBoothApp() {
   // Handle filter changes on results screen
   const handleFilterChange = async (filter: CameraFilter) => {
     setActiveFilter(filter);
-    if (capturedPhotos.length === 4) {
+    const photosToUse = isSquished ? capturedPhotos : rawCapturedPhotos;
+    if (photosToUse.length === 4) {
       setIsGeneratingStrip(true);
       try {
-        const { dataUrl, blob } = await createPhotoStrip(capturedPhotos, {
+        const { dataUrl, blob } = await createPhotoStrip(photosToUse, {
           filter,
           theme: activeTheme,
+          isSquished,
         });
         setStripUrl(dataUrl);
         setStripBlob(blob);
 
         // Update in gallery
-        saveStripToGallery(dataUrl, capturedPhotos, filter)
+        saveStripToGallery(dataUrl, photosToUse, filter)
           .then((saved) => setGalleryStrips((prev) => [saved, ...prev]))
           .catch(console.warn);
       } catch (err) {
@@ -394,22 +415,51 @@ export default function PhotoBoothApp() {
   // Handle theme changes on results screen (Graffiti Studio vs Classic White)
   const handleThemeChange = async (theme: StripTheme) => {
     setActiveTheme(theme);
-    if (capturedPhotos.length === 4) {
+    const photosToUse = isSquished ? capturedPhotos : rawCapturedPhotos;
+    if (photosToUse.length === 4) {
       setIsGeneratingStrip(true);
       try {
-        const { dataUrl, blob } = await createPhotoStrip(capturedPhotos, {
+        const { dataUrl, blob } = await createPhotoStrip(photosToUse, {
           filter: activeFilter,
           theme,
+          isSquished,
         });
         setStripUrl(dataUrl);
         setStripBlob(blob);
 
         // Update in gallery
-        saveStripToGallery(dataUrl, capturedPhotos, activeFilter)
+        saveStripToGallery(dataUrl, photosToUse, activeFilter)
           .then((saved) => setGalleryStrips((prev) => [saved, ...prev]))
           .catch(console.warn);
       } catch (err) {
         console.error("Failed updating strip theme:", err);
+      } finally {
+        setIsGeneratingStrip(false);
+      }
+    }
+  };
+
+  // Handle squish / unsquish toggle on results screen
+  const handleToggleSquish = async (squish: boolean) => {
+    setIsSquished(squish);
+    const photosToUse = squish ? capturedPhotos : rawCapturedPhotos;
+    if (photosToUse.length === 4) {
+      setIsGeneratingStrip(true);
+      try {
+        const { dataUrl, blob } = await createPhotoStrip(photosToUse, {
+          filter: activeFilter,
+          theme: activeTheme,
+          isSquished: squish,
+        });
+        setStripUrl(dataUrl);
+        setStripBlob(blob);
+
+        // Update in gallery
+        saveStripToGallery(dataUrl, photosToUse, activeFilter)
+          .then((saved) => setGalleryStrips((prev) => [saved, ...prev]))
+          .catch(console.warn);
+      } catch (err) {
+        console.error("Failed toggling squish mode:", err);
       } finally {
         setIsGeneratingStrip(false);
       }
@@ -549,10 +599,12 @@ export default function PhotoBoothApp() {
           stripUrl={stripUrl}
           activeFilter={activeFilter}
           activeTheme={activeTheme}
+          isSquished={isSquished}
           isGenerating={isGeneratingStrip}
           galleryCount={galleryStrips.length}
           onFilterChange={handleFilterChange}
           onThemeChange={handleThemeChange}
+          onToggleSquish={handleToggleSquish}
           onSave={() => handleSave()}
           onRetake={handleRetakeAll}
           onRetakeSinglePhoto={handleStartSingleRetake}
