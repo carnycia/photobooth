@@ -7,6 +7,7 @@ import { GalleryView } from "@/components/GalleryView";
 import { PermissionDeniedView } from "@/components/PermissionDeniedView";
 import { Toast } from "@/components/Toast";
 import { createPhotoStrip, StripFilter } from "@/lib/photostrip";
+import { CameraFilter } from "@/lib/filters";
 import {
   playCountdownBeep,
   playShutterSound,
@@ -48,7 +49,7 @@ export default function PhotoBoothApp() {
   // Results & strip states
   const [stripUrl, setStripUrl] = useState<string | null>(null);
   const [stripBlob, setStripBlob] = useState<Blob | null>(null);
-  const [activeFilter, setActiveFilter] = useState<StripFilter>("normal");
+  const [activeFilter, setActiveFilter] = useState<CameraFilter>("original");
   const [isGeneratingStrip, setIsGeneratingStrip] = useState(false);
 
   // Gallery states
@@ -346,7 +347,7 @@ export default function PhotoBoothApp() {
   };
 
   // Handle filter changes on results screen
-  const handleFilterChange = async (filter: StripFilter) => {
+  const handleFilterChange = async (filter: CameraFilter) => {
     setActiveFilter(filter);
     if (capturedPhotos.length === 4) {
       setIsGeneratingStrip(true);
@@ -515,6 +516,8 @@ export default function PhotoBoothApp() {
           retakingIndex={retakingIndex}
           galleryCount={galleryStrips.length}
           latestGalleryStripUrl={latestStrip}
+          activeFilter={activeFilter}
+          onSelectFilter={setActiveFilter}
           onOpenGallery={() => setIsGalleryOpen(true)}
           onCancelRetake={handleCancelSingleRetake}
           onShutterTap={startPhotoBoothSequence}

@@ -2,13 +2,14 @@
 
 import React from "react";
 import { StripFilter } from "@/lib/photostrip";
+import { CameraFilter, CAMERA_FILTERS } from "@/lib/filters";
 
 interface ResultsViewProps {
   stripUrl: string | null;
-  activeFilter: StripFilter;
+  activeFilter: CameraFilter | StripFilter;
   isGenerating: boolean;
   galleryCount?: number;
-  onFilterChange: (filter: StripFilter) => void;
+  onFilterChange: (filter: CameraFilter) => void;
   onSave: () => void;
   onRetake: () => void;
   onRetakeSinglePhoto: (index: number) => void;
@@ -26,13 +27,7 @@ export function ResultsView({
   onRetakeSinglePhoto,
   onOpenGallery,
 }: ResultsViewProps) {
-  const filters: { id: StripFilter; label: string }[] = [
-    { id: "normal", label: "Color" },
-    { id: "bw", label: "B & W" },
-    { id: "sepia", label: "Sepia" },
-    { id: "vintage", label: "Vintage" },
-    { id: "cool", label: "Cool" },
-  ];
+  const filters = CAMERA_FILTERS;
 
   // Calculated coordinates of the 4 photos inside the vertical strip
   const photoSlots = [

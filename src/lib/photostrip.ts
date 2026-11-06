@@ -1,6 +1,7 @@
 // Canvas-based vertical photobooth strip generator
+import { CameraFilter, getFilterCss } from "./filters";
 
-export type StripFilter = "normal" | "bw" | "sepia" | "vintage" | "cool";
+export type StripFilter = CameraFilter | "normal" | "sepia" | "vintage" | "cool";
 
 export interface StripOptions {
   filter?: StripFilter;
@@ -13,7 +14,7 @@ export async function createPhotoStrip(
   options: StripOptions = {}
 ): Promise<{ dataUrl: string; blob: Blob }> {
   const {
-    filter = "normal",
+    filter = "original",
     dateText = formatDefaultDate(new Date()),
     title = "PHOTO BOOTH",
   } = options;
@@ -58,23 +59,7 @@ export async function createPhotoStrip(
 
   // Apply photo filter if requested
   function applyCanvasFilter(context: CanvasRenderingContext2D, f: StripFilter) {
-    switch (f) {
-      case "bw":
-        context.filter = "grayscale(100%) contrast(115%) brightness(102%)";
-        break;
-      case "sepia":
-        context.filter = "sepia(75%) contrast(105%) brightness(98%)";
-        break;
-      case "vintage":
-        context.filter = "contrast(110%) brightness(105%) saturate(85%)";
-        break;
-      case "cool":
-        context.filter = "contrast(112%) brightness(102%) hue-rotate(185deg) saturate(75%)";
-        break;
-      default:
-        context.filter = "none";
-        break;
-    }
+    context.filter = getFilterCss(f);
   }
 
   // Draw each photo

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { RefObject } from "react";
+import { CameraFilter, CAMERA_FILTERS, getFilterCss } from "@/lib/filters";
 
 interface CameraViewProps {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -16,6 +17,8 @@ interface CameraViewProps {
   retakingIndex?: number | null;
   galleryCount?: number;
   latestGalleryStripUrl?: string | null;
+  activeFilter: CameraFilter;
+  onSelectFilter: (filter: CameraFilter) => void;
   onOpenGallery: () => void;
   onCancelRetake?: () => void;
   onShutterTap: () => void;
@@ -37,6 +40,8 @@ export function CameraView({
   retakingIndex,
   galleryCount = 0,
   latestGalleryStripUrl,
+  activeFilter,
+  onSelectFilter,
   onOpenGallery,
   onCancelRetake,
   onShutterTap,
@@ -45,6 +50,7 @@ export function CameraView({
 }: CameraViewProps) {
   const isFront = facingMode === "user";
   const isSingleRetake = retakingIndex !== null && retakingIndex !== undefined;
+  const filterStyle = { filter: getFilterCss(activeFilter) };
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden flex flex-col justify-between select-none">
@@ -58,7 +64,7 @@ export function CameraView({
         readOnly
       />
 
-      {/* Background Video Viewfinder with Recoil Shake on Snap */}
+      {/* Background Video Viewfinder with Live Filter & Recoil Shake on Snap */}
       <div
         className={`absolute inset-0 w-full h-full overflow-hidden bg-black flex items-center justify-center transition-transform duration-75 ${
           isFlashing ? "animate-camera-recoil" : ""
@@ -66,7 +72,8 @@ export function CameraView({
       >
         {isDemoMode ? (
           <div
-            className={`w-full h-full flex flex-col items-center justify-center transition-colors duration-500 ${
+            style={filterStyle}
+            className={`w-full h-full flex flex-col items-center justify-center transition-all duration-300 ${
               demoFrameIndex === 0
                 ? "bg-gradient-to-tr from-rose-900 via-purple-900 to-indigo-950"
                 : demoFrameIndex === 1
@@ -95,7 +102,8 @@ export function CameraView({
             autoPlay
             playsInline
             muted
-            className={`w-full h-full object-cover pointer-events-none transition-transform duration-300 ${
+            style={filterStyle}
+            className={`w-full h-full object-cover pointer-events-none transition-all duration-300 ${
               isFront ? "scale-x-[-1]" : "scale-x-100"
             }`}
           />
@@ -217,9 +225,31 @@ export function CameraView({
 
       {/* Bottom Shutter & Controls Area */}
       <div className="relative z-30 w-full pb-safe px-8 flex flex-col items-center">
+        {/* Row of Filter Buttons Above the Shutter */}
+        <div className="flex items-center gap-1.5 p-1 rounded-full bg-black/60 backdrop-blur-xl border border-white/15 shadow-xl mb-4 z-40">
+          {CAMERA_FILTERS.map((f) => {
+            const isSelected = activeFilter === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => onSelectFilter(f.id)}
+                disabled={isTakingPhotos}
+                aria-pressed={isSelected}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer ${
+                  isSelected
+                    ? "bg-white text-black shadow-md shadow-white/20 font-bold scale-[1.02]"
+                    : "text-neutral-300 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Helper instruction tooltip when idle */}
         {!isTakingPhotos && (
-          <p className="text-white/80 text-xs font-semibold tracking-wider uppercase mb-5 backdrop-blur-sm bg-black/40 px-3.5 py-1.5 rounded-full border border-white/10">
+          <p className="text-white/80 text-[11px] font-semibold tracking-wider uppercase mb-3.5 backdrop-blur-sm bg-black/40 px-3 py-1 rounded-full border border-white/10">
             {isSingleRetake
               ? `Tap shutter to retake Shot ${retakingIndex + 1}`
               : "Tap shutter to take 4 photos"}
