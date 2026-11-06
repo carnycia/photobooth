@@ -285,6 +285,36 @@ export function playSprayCanShake() {
 }
 
 /**
+ * Synthesize classic Apple iPod click wheel sound
+ * High-precision piezo tick with fast exponential decay
+ */
+export function playIpodClick() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(3200, now);
+    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.012);
+
+    gain.gain.setValueAtTime(0.7, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.015);
+  } catch {
+    // Ignore audio errors
+  }
+}
+
+/**
  * Trigger vibration / haptic feedback
  * - Uses navigator.vibrate if supported (Android, desktop browsers)
  * - Also dispatches iOS haptic element tick for Safari
