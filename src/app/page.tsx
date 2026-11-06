@@ -8,6 +8,7 @@ import { PermissionDeniedView } from "@/components/PermissionDeniedView";
 import { Toast } from "@/components/Toast";
 import { createPhotoStrip, StripFilter } from "@/lib/photostrip";
 import { CameraFilter } from "@/lib/filters";
+import { applyFisheyeToImage } from "@/lib/fisheye";
 import {
   playCountdownBeep,
   playShutterSound,
@@ -209,6 +210,12 @@ export default function PhotoBoothApp() {
     }
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    if (activeFilter === "fisheye") {
+      const fisheyeCanvas = applyFisheyeToImage(canvas, canvas.width, canvas.height);
+      return fisheyeCanvas.toDataURL("image/jpeg", 0.95);
+    }
+
     return canvas.toDataURL("image/jpeg", 0.95);
   };
 

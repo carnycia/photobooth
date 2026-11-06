@@ -10,7 +10,8 @@ A native-feeling iPhone photo booth web app built with Next.js, React 19, and Ta
 - **🤍 Classic Vertical Photo Strip**: Composites the 4 snaps onto high-resolution white border photo paper with date/time stamps and branding.
 - **🎯 Tap Any Photo to Retake**: Tap any of the 4 photos on the strip (or use the shot selectors) to retake just that single shot without losing the others.
 - **🖼️ Persistent Photo Strip Gallery**: A dedicated screen storing every photo strip you've made (backed by IndexedDB for offline, quota-free storage). Browse, view full-screen, re-share, or delete.
-- **🎨 Live Strip Filters**: Switch between **Color**, **B & W**, **Sepia**, **Vintage**, and **Cool** filters directly on the results screen.
+- **🐟 90s Fish-Eye Lens**: Real-time WebGL barrel distortion with spherical optical warping, edge chromatic aberration, and a classic circular lens vignette in both the live preview and final strip.
+- **🎨 Live Camera Filters**: Switch between **Original**, **Black & White**, **Film**, and **Fisheye** directly above the shutter button with real-time viewfinder updates.
 - **📲 Native iOS Share Sheet**: Tapping **Save** invokes the iPhone share sheet to save directly into **Apple Photos** (or downloads the image on a laptop/desktop).
 - **🔒 Friendly Permission Screen**: Clear instructions for iOS Safari and desktop browsers if camera access was denied, plus a **Demo Camera** simulation mode.
 - **📲 Installable PWA**: Includes web app manifest, standalone display mode, iOS meta tags, and icons for full-screen home screen launching without the Safari address bar.

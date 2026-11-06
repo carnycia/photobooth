@@ -1,7 +1,8 @@
 "use client";
 
-import React, { RefObject } from "react";
+import React, { RefObject, useEffect, useRef } from "react";
 import { CameraFilter, CAMERA_FILTERS, getFilterCss } from "@/lib/filters";
+import { createFisheyeRenderer, FisheyeRenderer } from "@/lib/fisheye";
 
 interface CameraViewProps {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -52,6 +53,56 @@ export function CameraView({
   const isSingleRetake = retakingIndex !== null && retakingIndex !== undefined;
   const filterStyle = { filter: getFilterCss(activeFilter) };
 
+  const fisheyeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rendererRef = useRef<FisheyeRenderer | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+
+  // Real-time 60 FPS WebGL Fisheye render loop
+  useEffect(() => {
+    if (activeFilter !== "fisheye") {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+      if (rendererRef.current) {
+        rendererRef.current.destroy();
+        rendererRef.current = null;
+      }
+      return;
+    }
+
+    const canvas = fisheyeCanvasRef.current;
+    if (!canvas) return;
+
+    const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 2);
+    canvas.width = Math.min(window.innerWidth * dpr, 960);
+    canvas.height = Math.min(window.innerHeight * dpr, 1280);
+
+    const renderer = createFisheyeRenderer(canvas);
+    rendererRef.current = renderer;
+
+    const renderLoop = () => {
+      const video = videoRef.current;
+      if (video && video.readyState >= 2 && rendererRef.current) {
+        rendererRef.current.render(video, isFront);
+      }
+      animFrameRef.current = requestAnimationFrame(renderLoop);
+    };
+
+    animFrameRef.current = requestAnimationFrame(renderLoop);
+
+    return () => {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+      if (rendererRef.current) {
+        rendererRef.current.destroy();
+        rendererRef.current = null;
+      }
+    };
+  }, [activeFilter, isFront, videoRef]);
+
   return (
     <div className="relative w-full h-full bg-black overflow-hidden flex flex-col justify-between select-none">
       {/* Hidden helper for iOS Safari haptic switch event */}
@@ -97,16 +148,24 @@ export function CameraView({
             </p>
           </div>
         ) : (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            style={filterStyle}
-            className={`w-full h-full object-cover pointer-events-none transition-all duration-300 ${
-              isFront ? "scale-x-[-1]" : "scale-x-100"
-            }`}
-          />
+          <>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={filterStyle}
+              className={`w-full h-full object-cover pointer-events-none transition-all duration-300 ${
+                isFront ? "scale-x-[-1]" : "scale-x-100"
+              } ${activeFilter === "fisheye" ? "opacity-0" : "opacity-100"}`}
+            />
+            {activeFilter === "fisheye" && (
+              <canvas
+                ref={fisheyeCanvasRef}
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              />
+            )}
+          </>
         )}
       </div>
 

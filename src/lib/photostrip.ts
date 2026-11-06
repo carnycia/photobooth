@@ -1,5 +1,6 @@
 // Canvas-based vertical photobooth strip generator
 import { CameraFilter, getFilterCss } from "./filters";
+import { applyFisheyeToImage } from "./fisheye";
 
 export type StripFilter = CameraFilter | "normal" | "sepia" | "vintage" | "cool";
 
@@ -72,10 +73,22 @@ export async function createPhotoStrip(
     drawRoundedRect(ctx, outerMarginX, photoY, photoWidth, photoHeight, radius);
     ctx.clip();
 
-    applyCanvasFilter(ctx, filter);
-
-    // Center-crop (object-fit: cover) the source photo into the destination rect
-    drawImageProp(ctx, img, outerMarginX, photoY, photoWidth, photoHeight);
+    if (filter === "fisheye") {
+      // First center crop onto temp canvas, then run fisheye barrel distortion
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = photoWidth;
+      tempCanvas.height = photoHeight;
+      const tCtx = tempCanvas.getContext("2d");
+      if (tCtx) {
+        drawImageProp(tCtx, img, 0, 0, photoWidth, photoHeight);
+        const fisheyeCanvas = applyFisheyeToImage(tempCanvas, photoWidth, photoHeight);
+        ctx.drawImage(fisheyeCanvas, outerMarginX, photoY, photoWidth, photoHeight);
+      }
+    } else {
+      applyCanvasFilter(ctx, filter);
+      // Center-crop (object-fit: cover) the source photo into the destination rect
+      drawImageProp(ctx, img, outerMarginX, photoY, photoWidth, photoHeight);
+    }
 
     ctx.restore();
 
