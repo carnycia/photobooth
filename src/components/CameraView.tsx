@@ -3,6 +3,7 @@
 import React, { RefObject, useEffect, useRef } from "react";
 import { CameraFilter, CAMERA_FILTERS, getFilterCss } from "@/lib/filters";
 import { createFisheyeRenderer, FisheyeRenderer } from "@/lib/fisheye";
+import { playSprayCanShake } from "@/lib/sounds";
 
 interface CameraViewProps {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -169,6 +170,65 @@ export function CameraView({
         )}
       </div>
 
+      {/* Street Art Mirror Frame Overlay (from reference photo) */}
+      <div className="absolute inset-3 sm:inset-5 pointer-events-none rounded-3xl border-2 border-neutral-300/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.08)] z-20">
+        {/* Top-Left: Cyan & Yellow Spray Paint bursts */}
+        <div className="absolute -top-1 -left-1">
+          <span className="text-2xl filter drop-shadow-[0_0_8px_rgba(250,204,21,0.9)] animate-pulse">
+            ✦
+          </span>
+          <span className="absolute -bottom-3 -right-3 text-sm text-cyan-400 drop-shadow-[0_0_6px_rgba(6,182,212,0.8)]">
+            ✦
+          </span>
+        </div>
+
+        {/* Top-Right: Street Sticker "JOT" */}
+        <div className="absolute top-2 right-2 transform rotate-3">
+          <div className="px-2 py-0.5 rounded bg-lime-400 text-black font-black text-[9px] tracking-widest uppercase border border-black shadow-md">
+            JOT • 涂鸦
+          </div>
+        </div>
+
+        {/* Fisheye Mode Convex Mirror Stencil Tag ("NICE TO MEET" from reference photo) */}
+        {activeFilter === "fisheye" && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-black/70 border border-white/20 text-white font-mono font-black text-xs tracking-widest uppercase shadow-lg backdrop-blur-sm animate-in fade-in zoom-in-95">
+            NICE TO MEET
+          </div>
+        )}
+
+        {/* Bottom-Left: Iconic Dripping Red Spray Paint Tag "was here..." */}
+        <div className="absolute bottom-28 left-3 sm:left-4 transform -rotate-3 select-none">
+          <div className="relative">
+            <span
+              className="font-black italic text-3xl sm:text-4xl text-red-500 tracking-tight block drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]"
+              style={{
+                fontFamily: "'Brush Script MT', 'Impact', cursive, sans-serif",
+                textShadow: "0 0 10px #ef4444, 0 0 20px #dc2626",
+              }}
+            >
+              was here...
+            </span>
+            {/* Realistic Paint Drips SVG */}
+            <svg
+              className="absolute -bottom-5 left-1 w-36 h-6 text-red-500 overflow-visible filter drop-shadow-[0_0_6px_rgba(239,68,68,0.8)]"
+              viewBox="0 0 140 24"
+              fill="currentColor"
+            >
+              <path d="M 8 0 L 9 14 A 2.5 2.5 0 0 0 14 14 L 15 0 Z" />
+              <path d="M 38 0 L 39 20 A 3 3 0 0 0 45 20 L 46 0 Z" />
+              <path d="M 68 0 L 69 11 A 2 2 0 0 0 73 11 L 74 0 Z" />
+              <path d="M 94 0 L 95 22 A 3.5 3.5 0 0 0 102 22 L 103 0 Z" />
+              <path d="M 124 0 L 125 15 A 2.5 2.5 0 0 0 130 15 L 131 0 Z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Bottom-Right: Blue star */}
+        <div className="absolute bottom-32 right-3 text-blue-500 text-lg filter drop-shadow-[0_0_8px_rgba(59,130,246,0.9)]">
+          ✦
+        </div>
+      </div>
+
       {/* Screen White Flash Overlay */}
       {isFlashing && (
         <div className="absolute inset-0 z-40 bg-white pointer-events-none animate-camera-flash" />
@@ -197,7 +257,7 @@ export function CameraView({
               onClick={onToggleSound}
               disabled={isTakingPhotos}
               aria-label={soundEnabled ? "Mute audio" : "Unmute audio"}
-              className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 active:scale-95 transition-transform disabled:opacity-40"
+              className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/15 flex items-center justify-center text-white/90 active:scale-95 transition-transform disabled:opacity-40 shadow-lg"
             >
               {soundEnabled ? (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,7 +280,7 @@ export function CameraView({
             Retaking Shot {retakingIndex + 1}
           </div>
         ) : (
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/45 backdrop-blur-md border border-white/10 shadow-lg">
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 shadow-lg">
             {[0, 1, 2, 3].map((idx) => {
               const isTaken = idx < capturedPhotos.length;
               const isCurrent = isTakingPhotos && idx === currentPhotoIndex;
@@ -229,9 +289,9 @@ export function CameraView({
                   key={idx}
                   className={`transition-all duration-300 rounded-full ${
                     isTaken
-                      ? "w-4 h-2 bg-emerald-400"
+                      ? "w-4 h-2 bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
                       : isCurrent
-                      ? "w-6 h-2 bg-yellow-400 animate-pulse"
+                      ? "w-6 h-2 bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.8)] animate-pulse"
                       : "w-2 h-2 bg-white/30"
                   }`}
                 />
@@ -245,7 +305,7 @@ export function CameraView({
           onClick={onFlipCamera}
           disabled={isTakingPhotos || isDemoMode}
           aria-label="Flip camera"
-          className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 active:scale-95 transition-transform disabled:opacity-40"
+          className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/15 flex items-center justify-center text-white/90 active:scale-95 transition-transform disabled:opacity-40 shadow-lg"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -258,45 +318,49 @@ export function CameraView({
         {isTakingPhotos ? (
           <div className="flex flex-col items-center justify-center">
             {/* Pose indicator badge */}
-            <div className="px-4 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 text-sm font-semibold tracking-wider uppercase mb-6 shadow-2xl">
+            <div className="px-5 py-1.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white font-black text-sm tracking-widest uppercase mb-6 shadow-2xl">
               {isSingleRetake ? `Shot ${retakingIndex + 1}` : `Pose ${currentPhotoIndex + 1} of 4`}
             </div>
 
-            {/* Huge 3-2-1 Countdown Indicator */}
+            {/* Huge 3-2-1 Spray Stencil Countdown Indicator */}
             {countdown !== null ? (
               <div
                 key={countdown}
-                className="flex items-center justify-center w-36 h-36 rounded-full bg-black/40 backdrop-blur-xl border-2 border-white/30 text-white font-extrabold text-7xl shadow-2xl animate-in zoom-in-75 duration-200"
+                className="flex items-center justify-center w-36 h-36 rounded-full bg-black/55 backdrop-blur-xl border-3 border-amber-400 text-yellow-300 font-black text-7xl shadow-[0_0_40px_rgba(250,204,21,0.5)] animate-in zoom-in-75 duration-200"
+                style={{
+                  fontFamily: "'Impact', 'Arial Black', sans-serif",
+                  textShadow: "0 0 20px #facc15",
+                }}
               >
                 {countdown}
               </div>
             ) : (
-              <div className="px-6 py-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white font-bold text-xl tracking-wide uppercase animate-pulse">
-                Smile! 📸
+              <div className="px-6 py-2.5 rounded-2xl bg-red-600/90 backdrop-blur-md text-white font-black text-2xl tracking-wider uppercase animate-pulse shadow-[0_0_25px_rgba(239,68,68,0.8)]">
+                SMILE! 📸
               </div>
             )}
           </div>
-        ) : (
-          /* Subtle centering rule / frame guide */
-          <div className="w-64 h-80 rounded-3xl border border-white/20 pointer-events-none opacity-40 transition-opacity" />
-        )}
+        ) : null}
       </div>
 
       {/* Bottom Shutter & Controls Area */}
       <div className="relative z-30 w-full pb-safe px-8 flex flex-col items-center">
-        {/* Row of Filter Buttons Above the Shutter */}
-        <div className="flex items-center gap-1.5 p-1 rounded-full bg-black/60 backdrop-blur-xl border border-white/15 shadow-xl mb-4 z-40">
+        {/* Row of Filter Buttons Above the Shutter with Spray Can Shake Sound */}
+        <div className="flex items-center gap-1.5 p-1 rounded-full bg-black/70 backdrop-blur-xl border border-white/20 shadow-2xl mb-4 z-40">
           {CAMERA_FILTERS.map((f) => {
             const isSelected = activeFilter === f.id;
             return (
               <button
                 key={f.id}
-                onClick={() => onSelectFilter(f.id)}
+                onClick={() => {
+                  playSprayCanShake();
+                  onSelectFilter(f.id);
+                }}
                 disabled={isTakingPhotos}
                 aria-pressed={isSelected}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-full text-xs font-black tracking-wide uppercase transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer ${
                   isSelected
-                    ? "bg-white text-black shadow-md shadow-white/20 font-bold scale-[1.02]"
+                    ? "bg-amber-400 text-black shadow-[0_0_12px_rgba(250,204,21,0.6)] font-black scale-[1.03]"
                     : "text-neutral-300 hover:text-white hover:bg-white/10"
                 }`}
               >
@@ -308,10 +372,10 @@ export function CameraView({
 
         {/* Helper instruction tooltip when idle */}
         {!isTakingPhotos && (
-          <p className="text-white/80 text-[11px] font-semibold tracking-wider uppercase mb-3.5 backdrop-blur-sm bg-black/40 px-3 py-1 rounded-full border border-white/10">
+          <p className="text-white/90 text-[10px] font-black tracking-widest uppercase mb-3.5 backdrop-blur-sm bg-neutral-900/80 px-3 py-1 rounded-full border border-white/15">
             {isSingleRetake
               ? `Tap shutter to retake Shot ${retakingIndex + 1}`
-              : "Tap shutter to take 4 photos"}
+              : "Tap shutter to shoot 4 photos"}
           </p>
         )}
 
@@ -321,7 +385,7 @@ export function CameraView({
             onClick={onOpenGallery}
             disabled={isTakingPhotos}
             aria-label="Open photo strip gallery"
-            className="group relative w-12 h-12 rounded-xl border border-white/25 overflow-hidden bg-neutral-900/80 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40 cursor-pointer shadow-lg"
+            className="group relative w-12 h-12 rounded-2xl border-2 border-white/30 overflow-hidden bg-neutral-900/90 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40 cursor-pointer shadow-xl"
           >
             {isSingleRetake && capturedPhotos[retakingIndex] ? (
               <img
@@ -337,7 +401,7 @@ export function CameraView({
                   className="w-full h-full object-cover"
                 />
                 {galleryCount > 0 && (
-                  <span className="absolute bottom-0 right-0 bg-black/70 text-[9px] font-bold px-1 rounded-tl text-white">
+                  <span className="absolute bottom-0 right-0 bg-red-600 text-[9px] font-black px-1 rounded-tl text-white">
                     {galleryCount}
                   </span>
                 )}
@@ -351,12 +415,12 @@ export function CameraView({
             )}
           </button>
 
-          {/* Center: Big Round Shutter Button */}
+          {/* Center: Big Round Shutter Button with Spray Can Halo */}
           <button
             onClick={onShutterTap}
             disabled={isTakingPhotos}
             aria-label={isSingleRetake ? `Retake shot ${retakingIndex + 1}` : "Take 4 photos"}
-            className="group relative flex items-center justify-center w-20 h-20 rounded-full border-[4px] border-white active:scale-92 transition-all duration-150 disabled:opacity-50 disabled:scale-95 focus:outline-none"
+            className="group relative flex items-center justify-center w-20 h-20 rounded-full border-[4px] border-white active:scale-92 transition-all duration-150 disabled:opacity-50 disabled:scale-95 focus:outline-none shadow-[0_0_24px_rgba(250,204,21,0.45)]"
           >
             {/* Inner circle */}
             <span
@@ -365,20 +429,20 @@ export function CameraView({
                   ? "w-8 h-8 bg-red-500 rounded-lg animate-pulse"
                   : isSingleRetake
                   ? "w-[62px] h-[62px] bg-amber-400 group-active:bg-amber-300"
-                  : "w-[62px] h-[62px] bg-white group-active:bg-neutral-200"
+                  : "w-[62px] h-[62px] bg-white group-active:bg-neutral-200 shadow-inner"
               }`}
             />
           </button>
 
-          {/* Right: Gallery Shortcut Button */}
+          {/* Right: Gallery Shortcut Button styled with orange street vibe */}
           <button
             onClick={onOpenGallery}
             disabled={isTakingPhotos}
             aria-label="View gallery"
-            className="w-12 h-12 flex flex-col items-center justify-center rounded-xl bg-black/40 backdrop-blur-md border border-white/10 active:scale-95 transition-transform disabled:opacity-40 text-neutral-300 hover:text-white"
+            className="w-12 h-12 flex flex-col items-center justify-center rounded-2xl bg-neutral-900/90 backdrop-blur-md border border-white/20 active:scale-95 transition-transform disabled:opacity-40 text-neutral-300 hover:text-white shadow-xl"
           >
             <span className="text-base">🎞️</span>
-            <span className="text-[9px] font-bold tracking-tight uppercase text-neutral-400 mt-0.5">
+            <span className="text-[8px] font-black tracking-tight uppercase text-amber-400 mt-0.5">
               Gallery
             </span>
           </button>

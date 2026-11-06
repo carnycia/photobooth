@@ -1,11 +1,14 @@
 // Canvas-based vertical photobooth strip generator
 import { CameraFilter, getFilterCss } from "./filters";
 import { applyFisheyeToImage } from "./fisheye";
+import { applyGraffitiThemeToStrip } from "./graffiti";
 
 export type StripFilter = CameraFilter | "normal" | "sepia" | "vintage" | "cool";
+export type StripTheme = "graffiti" | "classic";
 
 export interface StripOptions {
   filter?: StripFilter;
+  theme?: StripTheme;
   dateText?: string;
   title?: string;
 }
@@ -16,6 +19,7 @@ export async function createPhotoStrip(
 ): Promise<{ dataUrl: string; blob: Blob }> {
   const {
     filter = "original",
+    theme = "graffiti",
     dateText = formatDefaultDate(new Date()),
     title = "PHOTO BOOTH",
   } = options;
@@ -106,36 +110,43 @@ export async function createPhotoStrip(
 
   // Draw Footer Area
   const footerStartY = outerMarginTop + photosTotalHeight;
-  const footerCenterY = footerStartY + footerHeight / 2;
 
-  // Star / Diamond icon
-  ctx.fillStyle = "#111827";
-  ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("✦  ✦  ✦", stripWidth / 2, footerStartY + 55);
+  if (theme === "graffiti") {
+    // Render the street art graffiti theme (exact reference match)
+    applyGraffitiThemeToStrip(
+      ctx,
+      stripWidth,
+      stripHeight,
+      footerStartY,
+      footerHeight,
+      dateText
+    );
+  } else {
+    // Classic Minimalist Theme
+    ctx.fillStyle = "#111827";
+    ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("✦  ✦  ✦", stripWidth / 2, footerStartY + 55);
 
-  // Main Title: PHOTO BOOTH
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "800 42px -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif";
-  ctx.letterSpacing = "6px";
-  ctx.fillText(title, stripWidth / 2, footerStartY + 115);
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "800 42px -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif";
+    ctx.letterSpacing = "6px";
+    ctx.fillText(title, stripWidth / 2, footerStartY + 115);
 
-  // Date and Time subtext
-  ctx.fillStyle = "#64748b";
-  ctx.font = "600 24px -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif";
-  ctx.letterSpacing = "2px";
-  ctx.fillText(dateText.toUpperCase(), stripWidth / 2, footerStartY + 170);
+    ctx.fillStyle = "#64748b";
+    ctx.font = "600 24px -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif";
+    ctx.letterSpacing = "2px";
+    ctx.fillText(dateText.toUpperCase(), stripWidth / 2, footerStartY + 170);
 
-  // Subtle decorative bottom barcode / serial number
-  const serial = `PB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "500 18px monospace";
-  ctx.letterSpacing = "3px";
-  ctx.fillText(serial, stripWidth / 2, footerStartY + 230);
+    const serial = `PB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "500 18px monospace";
+    ctx.letterSpacing = "3px";
+    ctx.fillText(serial, stripWidth / 2, footerStartY + 230);
 
-  // Draw simulated barcode marks
-  drawSimulatedBarcode(ctx, stripWidth / 2, footerStartY + 265, 240, 24);
+    drawSimulatedBarcode(ctx, stripWidth / 2, footerStartY + 265, 240, 24);
+  }
 
   // Convert canvas to Data URL and Blob
   const dataUrl = canvas.toDataURL("image/png", 0.95);

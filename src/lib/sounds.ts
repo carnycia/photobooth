@@ -266,6 +266,25 @@ export function playPrinterSound() {
 }
 
 /**
+ * Play authentic spray paint can shaking rattle sound (marble bouncing inside metal can)
+ */
+export function playSprayCanShake() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
+
+    const now = ctx.currentTime;
+    [0, 0.075, 0.15].forEach((offset) => {
+      playThump(ctx, now + offset, 420, 160, 0.025, 0.35);
+      playMechanicalSnap(ctx, now + offset, 2400, 900, 0.02, 0.25);
+    });
+  } catch {
+    // Ignore audio error
+  }
+}
+
+/**
  * Trigger vibration / haptic feedback
  * - Uses navigator.vibrate if supported (Android, desktop browsers)
  * - Also dispatches iOS haptic element tick for Safari

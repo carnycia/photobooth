@@ -6,7 +6,7 @@ import { ResultsView } from "@/components/ResultsView";
 import { GalleryView } from "@/components/GalleryView";
 import { PermissionDeniedView } from "@/components/PermissionDeniedView";
 import { Toast } from "@/components/Toast";
-import { createPhotoStrip, StripFilter } from "@/lib/photostrip";
+import { createPhotoStrip, StripFilter, StripTheme } from "@/lib/photostrip";
 import { CameraFilter } from "@/lib/filters";
 import { applyFisheyeToImage } from "@/lib/fisheye";
 import {
@@ -51,6 +51,7 @@ export default function PhotoBoothApp() {
   const [stripUrl, setStripUrl] = useState<string | null>(null);
   const [stripBlob, setStripBlob] = useState<Blob | null>(null);
   const [activeFilter, setActiveFilter] = useState<CameraFilter>("original");
+  const [activeTheme, setActiveTheme] = useState<StripTheme>("graffiti");
   const [isGeneratingStrip, setIsGeneratingStrip] = useState(false);
 
   // Gallery states
@@ -270,6 +271,7 @@ export default function PhotoBoothApp() {
       try {
         const { dataUrl, blob } = await createPhotoStrip(updatedPhotos, {
           filter: activeFilter,
+          theme: activeTheme,
         });
         setStripUrl(dataUrl);
         setStripBlob(blob);
@@ -335,6 +337,7 @@ export default function PhotoBoothApp() {
     try {
       const { dataUrl, blob } = await createPhotoStrip(photos, {
         filter: activeFilter,
+        theme: activeTheme,
       });
       setStripUrl(dataUrl);
       setStripBlob(blob);
@@ -361,6 +364,7 @@ export default function PhotoBoothApp() {
       try {
         const { dataUrl, blob } = await createPhotoStrip(capturedPhotos, {
           filter,
+          theme: activeTheme,
         });
         setStripUrl(dataUrl);
         setStripBlob(blob);
@@ -371,6 +375,31 @@ export default function PhotoBoothApp() {
           .catch(console.warn);
       } catch (err) {
         console.error("Failed updating strip filter:", err);
+      } finally {
+        setIsGeneratingStrip(false);
+      }
+    }
+  };
+
+  // Handle theme changes on results screen (Graffiti Studio vs Classic White)
+  const handleThemeChange = async (theme: StripTheme) => {
+    setActiveTheme(theme);
+    if (capturedPhotos.length === 4) {
+      setIsGeneratingStrip(true);
+      try {
+        const { dataUrl, blob } = await createPhotoStrip(capturedPhotos, {
+          filter: activeFilter,
+          theme,
+        });
+        setStripUrl(dataUrl);
+        setStripBlob(blob);
+
+        // Update in gallery
+        saveStripToGallery(dataUrl, capturedPhotos, activeFilter)
+          .then((saved) => setGalleryStrips((prev) => [saved, ...prev]))
+          .catch(console.warn);
+      } catch (err) {
+        console.error("Failed updating strip theme:", err);
       } finally {
         setIsGeneratingStrip(false);
       }
@@ -497,9 +526,11 @@ export default function PhotoBoothApp() {
         <ResultsView
           stripUrl={stripUrl}
           activeFilter={activeFilter}
+          activeTheme={activeTheme}
           isGenerating={isGeneratingStrip}
           galleryCount={galleryStrips.length}
           onFilterChange={handleFilterChange}
+          onThemeChange={handleThemeChange}
           onSave={() => handleSave()}
           onRetake={handleRetakeAll}
           onRetakeSinglePhoto={handleStartSingleRetake}
