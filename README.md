@@ -5,12 +5,13 @@ A native-feeling iPhone photo booth web app built with Next.js, React 19, and Ta
 ## ✨ Features
 
 - **📱 Native iPhone Camera UI**: Full-screen live camera preview (front selfie camera default with flip toggle) and tactile round shutter button.
-- **⏱️ 3-2-1 Countdown & Flash**: 3-second countdown before each shot with audio beeps, haptic vibration, and a realistic camera flash + shutter sound.
+- **⏱️ 3-2-1 Countdown & Flash**: 3-second countdown before each shot with dual-tone audio beeps, screen recoil vibration, and a realistic mechanical shutter sound.
 - **🎞️ 4-Photo Sequence**: Snaps 4 photos in a row with pose indicators (`Pose 1 of 4` through `Pose 4 of 4`).
 - **🤍 Classic Vertical Photo Strip**: Composites the 4 snaps onto high-resolution white border photo paper with date/time stamps and branding.
+- **🎯 Tap Any Photo to Retake**: Tap any of the 4 photos on the strip (or use the shot selectors) to retake just that single shot without losing the others.
+- **🖼️ Persistent Photo Strip Gallery**: A dedicated screen storing every photo strip you've made (backed by IndexedDB for offline, quota-free storage). Browse, view full-screen, re-share, or delete.
 - **🎨 Live Strip Filters**: Switch between **Color**, **B & W**, **Sepia**, **Vintage**, and **Cool** filters directly on the results screen.
 - **📲 Native iOS Share Sheet**: Tapping **Save** invokes the iPhone share sheet to save directly into **Apple Photos** (or downloads the image on a laptop/desktop).
-- **🔁 Retake**: Clear and instantly restart a new photo session.
 - **🔒 Friendly Permission Screen**: Clear instructions for iOS Safari and desktop browsers if camera access was denied, plus a **Demo Camera** simulation mode.
 - **📲 Installable PWA**: Includes web app manifest, standalone display mode, iOS meta tags, and icons for full-screen home screen launching without the Safari address bar.
 
@@ -42,5 +43,6 @@ Open [http://localhost:3000](http://localhost:3000) (or `http://localhost:3001` 
 - **Framework**: Next.js 16 (App Router & Turbopack)
 - **UI**: React 19, Tailwind CSS v4
 - **Graphics**: HTML5 Canvas compositing & filters
-- **Audio**: Web Audio API synthesized tones & shutter sound
+- **Audio**: Web Audio API synthesized tones & mechanical shutter sound
+- **Storage**: IndexedDB for persistent local photo strip library
 - **Share**: Web Share API Level 2 (files sharing)

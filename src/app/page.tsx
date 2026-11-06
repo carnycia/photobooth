@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { CameraView } from "@/components/CameraView";
 import { ResultsView } from "@/components/ResultsView";
+import { GalleryView } from "@/components/GalleryView";
 import { PermissionDeniedView } from "@/components/PermissionDeniedView";
 import { Toast } from "@/components/Toast";
 import { createPhotoStrip, StripFilter } from "@/lib/photostrip";
@@ -13,6 +14,13 @@ import {
   triggerHapticVibration,
 } from "@/lib/sounds";
 import { generateDemoFrame } from "@/lib/demomode";
+import {
+  SavedStrip,
+  getAllSavedStrips,
+  saveStripToGallery,
+  deleteSavedStrip,
+  clearAllSavedStrips,
+} from "@/lib/gallery-db";
 
 export default function PhotoBoothApp() {
   // Camera & permission states
@@ -43,6 +51,10 @@ export default function PhotoBoothApp() {
   const [activeFilter, setActiveFilter] = useState<StripFilter>("normal");
   const [isGeneratingStrip, setIsGeneratingStrip] = useState(false);
 
+  // Gallery states
+  const [galleryStrips, setGalleryStrips] = useState<SavedStrip[]>([]);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+
   // UI feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -53,6 +65,13 @@ export default function PhotoBoothApp() {
     toastTimeoutRef.current = setTimeout(() => {
       setToastMessage(null);
     }, 3200);
+  }, []);
+
+  // Load saved strips from IndexedDB on start
+  useEffect(() => {
+    getAllSavedStrips()
+      .then(setGalleryStrips)
+      .catch((err) => console.warn("Could not load gallery strips:", err));
   }, []);
 
   // Stop active camera stream
@@ -69,7 +88,6 @@ export default function PhotoBoothApp() {
       setIsDemoMode(false);
       stopStream();
 
-      // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setHasPermission(false);
         setPermissionError("not_found");
@@ -197,7 +215,6 @@ export default function PhotoBoothApp() {
   const startPhotoBoothSequence = async () => {
     if (isTakingPhotos) return;
 
-    // Immediately unlock Web Audio API in the user gesture call stack (required for iOS Safari)
     unlockAudio();
     setIsTakingPhotos(true);
 
@@ -248,7 +265,13 @@ export default function PhotoBoothApp() {
         });
         setStripUrl(dataUrl);
         setStripBlob(blob);
-        showToast(`Shot ${targetIdx + 1} updated!`);
+
+        // Save updated strip to gallery
+        saveStripToGallery(dataUrl, updatedPhotos, activeFilter)
+          .then((saved) => setGalleryStrips((prev) => [saved, ...prev]))
+          .catch(console.warn);
+
+        showToast(`Shot ${targetIdx + 1} updated & saved to gallery!`);
       } catch (err) {
         console.error("Failed regenerating strip:", err);
         showToast("Error updating photo strip");
@@ -268,7 +291,6 @@ export default function PhotoBoothApp() {
         setDemoFrameIndex(i);
       }
 
-      // 3-2-1 Countdown with crisp audible beeps
       setCountdown(3);
       if (soundEnabled) playCountdownBeep(3);
       await wait(1000);
@@ -281,7 +303,6 @@ export default function PhotoBoothApp() {
       if (soundEnabled) playCountdownBeep(1);
       await wait(1000);
 
-      // SNAP! Flash screen, play shutter sound, trigger vibration
       setCountdown(null);
       setIsFlashing(true);
       if (soundEnabled) playShutterSound();
@@ -291,11 +312,9 @@ export default function PhotoBoothApp() {
       photos.push(photoDataUrl);
       setCapturedPhotos([...photos]);
 
-      // Flash fade out
       await wait(180);
       setIsFlashing(false);
 
-      // Pause before next pose (if not last photo)
       if (i < 3) {
         await wait(1000);
       }
@@ -311,6 +330,13 @@ export default function PhotoBoothApp() {
       });
       setStripUrl(dataUrl);
       setStripBlob(blob);
+
+      // Save to gallery
+      saveStripToGallery(dataUrl, photos, activeFilter)
+        .then((saved) => setGalleryStrips((prev) => [saved, ...prev]))
+        .catch(console.warn);
+
+      showToast("Photo strip saved to gallery!");
     } catch (err) {
       console.error("Failed to generate photo strip:", err);
       showToast("Error creating photo strip");
@@ -330,6 +356,11 @@ export default function PhotoBoothApp() {
         });
         setStripUrl(dataUrl);
         setStripBlob(blob);
+
+        // Update in gallery
+        saveStripToGallery(dataUrl, capturedPhotos, filter)
+          .then((saved) => setGalleryStrips((prev) => [saved, ...prev]))
+          .catch(console.warn);
       } catch (err) {
         console.error("Failed updating strip filter:", err);
       } finally {
@@ -339,49 +370,54 @@ export default function PhotoBoothApp() {
   };
 
   // Handle Save / Share button
-  const handleSave = async () => {
-    if (!stripBlob || !stripUrl) return;
+  const handleSave = async (customUrl?: string, customBlob?: Blob) => {
+    const url = customUrl || stripUrl;
+    const blob = customBlob || stripBlob;
+    if (!url) return;
 
     const dateStr = new Date().toISOString().slice(0, 10);
     const timeStr = Date.now().toString().slice(-4);
     const filename = `photobooth-${dateStr}-${timeStr}.png`;
-    const file = new File([stripBlob], filename, { type: "image/png" });
 
-    // Try native Web Share API with files (iPhone Share Sheet -> "Save Image" to Photos)
-    if (
-      typeof navigator !== "undefined" &&
-      navigator.canShare &&
-      navigator.canShare({ files: [file] })
-    ) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: "Photo Booth Strip",
-          text: "Here is our photo booth strip!",
-        });
-        showToast("Opened Share Sheet");
-        return;
-      } catch (err: unknown) {
-        const error = err as { name?: string };
-        if (error.name === "AbortError") {
-          return;
-        }
-        console.warn("Share failed, falling back to download:", error);
-      }
-    }
-
-    // Fallback: Direct download for Laptop/Desktop or unsupported mobile browsers
     try {
+      let fileBlob = blob;
+      if (!fileBlob) {
+        const res = await fetch(url);
+        fileBlob = await res.blob();
+      }
+
+      const file = new File([fileBlob], filename, { type: "image/png" });
+
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: "Photo Booth Strip",
+            text: "From our Photo Booth!",
+          });
+          showToast("Opened Share Sheet");
+          return;
+        } catch (err: unknown) {
+          const error = err as { name?: string };
+          if (error.name === "AbortError") return;
+        }
+      }
+
+      // Fallback: direct download
       const a = document.createElement("a");
-      a.href = stripUrl;
+      a.href = url;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       showToast("Photo strip saved to Downloads!");
     } catch (err) {
-      console.error("Download failed:", err);
-      showToast("Could not download image");
+      console.error("Save failed:", err);
+      showToast("Could not save image");
     }
   };
 
@@ -399,6 +435,31 @@ export default function PhotoBoothApp() {
     }
   };
 
+  // Gallery actions
+  const handleDeleteStrip = async (id: string) => {
+    try {
+      await deleteSavedStrip(id);
+      setGalleryStrips((prev) => prev.filter((s) => s.id !== id));
+      showToast("Strip deleted from gallery");
+    } catch (err) {
+      console.error("Delete failed:", err);
+      showToast("Failed to delete strip");
+    }
+  };
+
+  const handleClearAll = async () => {
+    try {
+      await clearAllSavedStrips();
+      setGalleryStrips([]);
+      showToast("Gallery cleared");
+    } catch (err) {
+      console.error("Clear failed:", err);
+      showToast("Failed to clear gallery");
+    }
+  };
+
+  const latestStrip = galleryStrips[0]?.stripUrl || null;
+
   return (
     <div className="relative w-full h-full min-h-screen bg-black text-white select-none overflow-hidden">
       <Toast message={toastMessage} />
@@ -412,21 +473,34 @@ export default function PhotoBoothApp() {
         />
       )}
 
+      {/* Gallery Screen */}
+      {isGalleryOpen && (
+        <GalleryView
+          strips={galleryStrips}
+          onBackToCamera={() => setIsGalleryOpen(false)}
+          onDeleteStrip={handleDeleteStrip}
+          onClearAll={handleClearAll}
+          onShareStrip={(url) => handleSave(url)}
+        />
+      )}
+
       {/* Results View (when 4 photos are captured & strip generated) */}
-      {hasPermission !== false && stripUrl && (
+      {!isGalleryOpen && hasPermission !== false && stripUrl && (
         <ResultsView
           stripUrl={stripUrl}
           activeFilter={activeFilter}
           isGenerating={isGeneratingStrip}
+          galleryCount={galleryStrips.length}
           onFilterChange={handleFilterChange}
-          onSave={handleSave}
+          onSave={() => handleSave()}
           onRetake={handleRetakeAll}
           onRetakeSinglePhoto={handleStartSingleRetake}
+          onOpenGallery={() => setIsGalleryOpen(true)}
         />
       )}
 
       {/* Live Camera Viewfinder */}
-      {hasPermission !== false && !stripUrl && (
+      {!isGalleryOpen && hasPermission !== false && !stripUrl && (
         <CameraView
           videoRef={videoRef}
           facingMode={facingMode}
@@ -439,6 +513,9 @@ export default function PhotoBoothApp() {
           isDemoMode={isDemoMode}
           demoFrameIndex={demoFrameIndex}
           retakingIndex={retakingIndex}
+          galleryCount={galleryStrips.length}
+          latestGalleryStripUrl={latestStrip}
+          onOpenGallery={() => setIsGalleryOpen(true)}
           onCancelRetake={handleCancelSingleRetake}
           onShutterTap={startPhotoBoothSequence}
           onFlipCamera={handleFlipCamera}

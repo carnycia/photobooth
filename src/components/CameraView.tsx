@@ -14,6 +14,9 @@ interface CameraViewProps {
   isDemoMode: boolean;
   demoFrameIndex: number;
   retakingIndex?: number | null;
+  galleryCount?: number;
+  latestGalleryStripUrl?: string | null;
+  onOpenGallery: () => void;
   onCancelRetake?: () => void;
   onShutterTap: () => void;
   onFlipCamera: () => void;
@@ -32,6 +35,9 @@ export function CameraView({
   isDemoMode,
   demoFrameIndex,
   retakingIndex,
+  galleryCount = 0,
+  latestGalleryStripUrl,
+  onOpenGallery,
   onCancelRetake,
   onShutterTap,
   onFlipCamera,
@@ -119,23 +125,25 @@ export function CameraView({
             Cancel
           </button>
         ) : (
-          <button
-            onClick={onToggleSound}
-            disabled={isTakingPhotos}
-            aria-label={soundEnabled ? "Mute audio" : "Unmute audio"}
-            className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 active:scale-95 transition-transform disabled:opacity-40"
-          >
-            {soundEnabled ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-              </svg>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onToggleSound}
+              disabled={isTakingPhotos}
+              aria-label={soundEnabled ? "Mute audio" : "Unmute audio"}
+              className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 active:scale-95 transition-transform disabled:opacity-40"
+            >
+              {soundEnabled ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                </svg>
+              )}
+            </button>
+          </div>
         )}
 
         {/* Center: Single Retake indicator OR 4-photo progress pills */}
@@ -165,7 +173,7 @@ export function CameraView({
           </div>
         )}
 
-        {/* Right: Camera Flip Toggle */}
+        {/* Right Side: Flip camera button */}
         <button
           onClick={onFlipCamera}
           disabled={isTakingPhotos || isDemoMode}
@@ -219,26 +227,40 @@ export function CameraView({
         )}
 
         <div className="w-full flex items-center justify-between max-w-sm mb-2">
-          {/* Left: Thumbnail of the shot being replaced or latest snap */}
-          <div className="w-12 h-12 rounded-xl border border-white/20 overflow-hidden bg-neutral-900/60 backdrop-blur-md flex items-center justify-center">
+          {/* Left: Gallery button showing latest strip thumbnail or photos icon */}
+          <button
+            onClick={onOpenGallery}
+            disabled={isTakingPhotos}
+            aria-label="Open photo strip gallery"
+            className="group relative w-12 h-12 rounded-xl border border-white/25 overflow-hidden bg-neutral-900/80 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40 cursor-pointer shadow-lg"
+          >
             {isSingleRetake && capturedPhotos[retakingIndex] ? (
               <img
                 src={capturedPhotos[retakingIndex]}
                 alt={`Current Shot ${retakingIndex + 1}`}
                 className="w-full h-full object-cover opacity-60"
               />
-            ) : capturedPhotos.length > 0 ? (
-              <img
-                src={capturedPhotos[capturedPhotos.length - 1]}
-                alt="Latest snap"
-                className="w-full h-full object-cover"
-              />
+            ) : latestGalleryStripUrl ? (
+              <div className="w-full h-full relative">
+                <img
+                  src={latestGalleryStripUrl}
+                  alt="Gallery"
+                  className="w-full h-full object-cover"
+                />
+                {galleryCount > 0 && (
+                  <span className="absolute bottom-0 right-0 bg-black/70 text-[9px] font-bold px-1 rounded-tl text-white">
+                    {galleryCount}
+                  </span>
+                )}
+              </div>
             ) : (
-              <svg className="w-5 h-5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+              <div className="flex flex-col items-center justify-center text-white/70">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
             )}
-          </div>
+          </button>
 
           {/* Center: Big Round Shutter Button */}
           <button
@@ -259,12 +281,18 @@ export function CameraView({
             />
           </button>
 
-          {/* Right: Balance placeholder or Front indicator */}
-          <div className="w-12 h-12 flex items-center justify-center">
-            <span className="text-[11px] font-bold text-white/60 tracking-wider uppercase">
-              {isFront ? "FRONT" : "BACK"}
+          {/* Right: Gallery Shortcut Button */}
+          <button
+            onClick={onOpenGallery}
+            disabled={isTakingPhotos}
+            aria-label="View gallery"
+            className="w-12 h-12 flex flex-col items-center justify-center rounded-xl bg-black/40 backdrop-blur-md border border-white/10 active:scale-95 transition-transform disabled:opacity-40 text-neutral-300 hover:text-white"
+          >
+            <span className="text-base">🎞️</span>
+            <span className="text-[9px] font-bold tracking-tight uppercase text-neutral-400 mt-0.5">
+              Gallery
             </span>
-          </div>
+          </button>
         </div>
       </div>
     </div>

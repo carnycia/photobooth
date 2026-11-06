@@ -7,20 +7,24 @@ interface ResultsViewProps {
   stripUrl: string | null;
   activeFilter: StripFilter;
   isGenerating: boolean;
+  galleryCount?: number;
   onFilterChange: (filter: StripFilter) => void;
   onSave: () => void;
   onRetake: () => void;
   onRetakeSinglePhoto: (index: number) => void;
+  onOpenGallery: () => void;
 }
 
 export function ResultsView({
   stripUrl,
   activeFilter,
   isGenerating,
+  galleryCount = 0,
   onFilterChange,
   onSave,
   onRetake,
   onRetakeSinglePhoto,
+  onOpenGallery,
 }: ResultsViewProps) {
   const filters: { id: StripFilter; label: string }[] = [
     { id: "normal", label: "Color" },
@@ -56,12 +60,19 @@ export function ResultsView({
           Your Photo Strip
         </h2>
 
-        {/* Small badge */}
-        <div className="w-16 text-right">
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/70">
-            4 SHOTS
-          </span>
-        </div>
+        {/* Gallery button shortcut */}
+        <button
+          onClick={onOpenGallery}
+          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/15 text-white text-xs font-semibold backdrop-blur-md active:scale-95 transition-all"
+        >
+          <span>🎞️</span>
+          <span>Gallery</span>
+          {galleryCount > 0 && (
+            <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-white text-black text-[10px] font-bold">
+              {galleryCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Main Strip Display Area (scrollable on small screens) */}
