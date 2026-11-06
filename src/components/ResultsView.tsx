@@ -127,11 +127,27 @@ export function ResultsView({
         {/* Emergence Chamber */}
         <div className="relative w-full flex flex-col items-center overflow-hidden pt-0.5">
           {isGenerating || !stripUrl ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-16">
-              <div className="w-10 h-10 border-3 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
-              <p className="text-amber-300 text-xs font-black tracking-widest uppercase">
-                PRINTING GRAFFITI STRIP...
-              </p>
+            <div className="relative w-full max-w-xs mx-auto rounded-3xl overflow-hidden border border-red-500/40 p-6 my-8 flex flex-col items-center justify-center gap-3 shadow-[0_0_35px_rgba(239,68,68,0.35)] bg-black/85 backdrop-blur-xl">
+              {/* Background ambient red glow */}
+              <div className="absolute inset-0 bg-radial from-red-600/25 via-red-950/20 to-black pointer-events-none" />
+              {/* Red Convex Mirror Aperture graphic */}
+              <div className="relative w-20 h-20 rounded-full border-2 border-neutral-300 p-1 bg-gradient-to-tr from-neutral-700 via-neutral-900 to-black shadow-[0_0_25px_rgba(239,68,68,0.7)] flex items-center justify-center">
+                <div className="w-full h-full rounded-full bg-red-900/60 overflow-hidden flex items-center justify-center relative">
+                  <div className="w-12 h-12 border-2 border-dashed border-red-400 rounded-full animate-spin" style={{ animationDuration: "3s" }} />
+                  <span className="absolute text-xl animate-pulse">🪞</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-center gap-1 z-10 text-center">
+                <span className="px-2 py-0.5 rounded bg-lime-400 text-black text-[9px] font-black uppercase tracking-wider shadow-sm">
+                  RED ROOM DARKROOM
+                </span>
+                <p className="text-red-400 text-xs font-black tracking-widest uppercase mt-1">
+                  DEVELOPING GRAFFITI STRIP...
+                </p>
+                <p className="text-neutral-400 text-[10px] font-mono">
+                  CURATING CONVEX MIRROR REFLECTIONS
+                </p>
+              </div>
             </div>
           ) : (
             <div

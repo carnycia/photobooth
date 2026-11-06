@@ -5,6 +5,7 @@ import { CameraView } from "@/components/CameraView";
 import { ResultsView } from "@/components/ResultsView";
 import { GalleryView } from "@/components/GalleryView";
 import { PermissionDeniedView } from "@/components/PermissionDeniedView";
+import { LoadingScreen } from "@/components/LoadingScreen";
 import { Toast } from "@/components/Toast";
 import { createPhotoStrip, StripFilter, StripTheme } from "@/lib/photostrip";
 import { CameraFilter } from "@/lib/filters";
@@ -33,6 +34,7 @@ export default function PhotoBoothApp() {
   const [permissionError, setPermissionError] = useState<"denied" | "not_found" | "error" | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [demoFrameIndex, setDemoFrameIndex] = useState(0);
+  const [isLoadingScreenVisible, setIsLoadingScreenVisible] = useState(true);
 
   // Photo sequence states
   const [isTakingPhotos, setIsTakingPhotos] = useState(false);
@@ -501,8 +503,20 @@ export default function PhotoBoothApp() {
     <div className="relative w-full h-full min-h-screen bg-black text-white select-none overflow-hidden">
       <Toast message={toastMessage} />
 
+      {/* Red Room Mirrors Loading Screen */}
+      {isLoadingScreenVisible && (
+        <LoadingScreen
+          hasPermission={hasPermission}
+          onComplete={() => setIsLoadingScreenVisible(false)}
+          onUseDemo={() => {
+            handleUseDemo();
+            setIsLoadingScreenVisible(false);
+          }}
+        />
+      )}
+
       {/* Permission Denied Screen */}
-      {hasPermission === false && (
+      {!isLoadingScreenVisible && hasPermission === false && (
         <PermissionDeniedView
           onRetry={() => startCamera(facingMode)}
           onUseDemo={handleUseDemo}

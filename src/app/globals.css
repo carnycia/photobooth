@@ -107,6 +107,24 @@ body {
   transform: scale(0.92);
 }
 
+/* Red room ambient slow drift */
+@keyframes redRoomZoom {
+  0% {
+    transform: scale(1.0);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1.0);
+  }
+}
+
+.animate-red-room {
+  animation: redRoomZoom 14s ease-in-out infinite;
+  will-change: transform;
+}
+
 /* Safe area inset utilities */
 .pt-safe {
   padding-top: max(env(safe-area-inset-top), 16px);
