@@ -1,69 +1,365 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { CameraView } from "@/components/CameraView";
+import { ResultsView } from "@/components/ResultsView";
+import { PermissionDeniedView } from "@/components/PermissionDeniedView";
+import { Toast } from "@/components/Toast";
+import { createPhotoStrip, StripFilter } from "@/lib/photostrip";
+import { playCountdownBeep, playShutterSound } from "@/lib/sounds";
+import { generateDemoFrame } from "@/lib/demomode";
+
+export default function PhotoBoothApp() {
+  // Camera & permission states
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [permissionError, setPermissionError] = useState<"denied" | "not_found" | "error" | null>(null);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [demoFrameIndex, setDemoFrameIndex] = useState(0);
+
+  // Photo sequence states
+  const [isTakingPhotos, setIsTakingPhotos] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [isFlashing, setIsFlashing] = useState(false);
+  const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // Results & strip states
+  const [stripUrl, setStripUrl] = useState<string | null>(null);
+  const [stripBlob, setStripBlob] = useState<Blob | null>(null);
+  const [activeFilter, setActiveFilter] = useState<StripFilter>("normal");
+  const [isGeneratingStrip, setIsGeneratingStrip] = useState(false);
+
+  // UI feedback
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastMessage(msg);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 3200);
+  }, []);
+
+  // Stop active camera stream
+  const stopStream = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  }, []);
+
+  // Request camera access and attach to video element
+  const startCamera = useCallback(
+    async (mode: "user" | "environment" = facingMode) => {
+      setIsDemoMode(false);
+      stopStream();
+
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setHasPermission(false);
+        setPermissionError("not_found");
+        return;
+      }
+
+      try {
+        setPermissionError(null);
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: mode },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        });
+
+        streamRef.current = stream;
+        setHasPermission(true);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          // Play stream explicitly for iOS Safari
+          try {
+            await videoRef.current.play();
+          } catch {
+            // auto-play handle
+          }
+        }
+      } catch (err: unknown) {
+        const error = err as { name?: string };
+        console.warn("Camera access failed:", error);
+        setHasPermission(false);
+        if (
+          error.name === "NotAllowedError" ||
+          error.name === "PermissionDeniedError"
+        ) {
+          setPermissionError("denied");
+        } else if (
+          error.name === "NotFoundError" ||
+          error.name === "DevicesNotFoundError"
+        ) {
+          setPermissionError("not_found");
+        } else {
+          setPermissionError("error");
+        }
+      }
+    },
+    [facingMode, stopStream]
+  );
+
+  // Initialize camera on mount
+  useEffect(() => {
+    startCamera(facingMode);
+    return () => {
+      stopStream();
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, [facingMode, startCamera, stopStream]);
+
+  // Handle switching front/back camera
+  const handleFlipCamera = () => {
+    if (isTakingPhotos) return;
+    const nextMode = facingMode === "user" ? "environment" : "user";
+    setFacingMode(nextMode);
+    startCamera(nextMode);
+  };
+
+  // Toggle demo camera mode
+  const handleUseDemo = () => {
+    stopStream();
+    setIsDemoMode(true);
+    setHasPermission(true);
+    setPermissionError(null);
+    setDemoFrameIndex(0);
+    showToast("Switched to Demo Camera");
+  };
+
+  // Capture current video frame into high-res data URL
+  const captureCurrentFrame = (): string => {
+    if (isDemoMode) {
+      return generateDemoFrame(demoFrameIndex);
+    }
+
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      return generateDemoFrame(demoFrameIndex);
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+
+    // Mirror horizontally for front-facing selfie camera
+    if (facingMode === "user") {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.95);
+  };
+
+  // Sequence to take 4 photos in a row
+  const startPhotoBoothSequence = async () => {
+    if (isTakingPhotos) return;
+
+    setIsTakingPhotos(true);
+    setCapturedPhotos([]);
+    const photos: string[] = [];
+
+    // Helper sleep
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    for (let i = 0; i < 4; i++) {
+      setCurrentPhotoIndex(i);
+      if (isDemoMode) {
+        setDemoFrameIndex(i);
+      }
+
+      // 3-2-1 Countdown
+      setCountdown(3);
+      if (soundEnabled) playCountdownBeep(false);
+      await wait(1000);
+
+      setCountdown(2);
+      if (soundEnabled) playCountdownBeep(false);
+      await wait(1000);
+
+      setCountdown(1);
+      if (soundEnabled) playCountdownBeep(false);
+      await wait(1000);
+
+      // SNAP! Flash screen and take photo
+      setCountdown(null);
+      setIsFlashing(true);
+      if (soundEnabled) playShutterSound();
+
+      // Haptic vibration feedback if supported
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(60);
+      }
+
+      const photoDataUrl = captureCurrentFrame();
+      photos.push(photoDataUrl);
+      setCapturedPhotos([...photos]);
+
+      // Flash fade out
+      await wait(180);
+      setIsFlashing(false);
+
+      // Pause before next pose (if not last photo)
+      if (i < 3) {
+        await wait(1000);
+      }
+    }
+
+    // Sequence complete, build the photo strip!
+    setIsTakingPhotos(false);
+    setIsGeneratingStrip(true);
+
+    try {
+      const { dataUrl, blob } = await createPhotoStrip(photos, {
+        filter: activeFilter,
+      });
+      setStripUrl(dataUrl);
+      setStripBlob(blob);
+    } catch (err) {
+      console.error("Failed to generate photo strip:", err);
+      showToast("Error creating photo strip");
+    } finally {
+      setIsGeneratingStrip(false);
+    }
+  };
+
+  // Handle filter changes on results screen
+  const handleFilterChange = async (filter: StripFilter) => {
+    setActiveFilter(filter);
+    if (capturedPhotos.length === 4) {
+      setIsGeneratingStrip(true);
+      try {
+        const { dataUrl, blob } = await createPhotoStrip(capturedPhotos, {
+          filter,
+        });
+        setStripUrl(dataUrl);
+        setStripBlob(blob);
+      } catch (err) {
+        console.error("Failed updating strip filter:", err);
+      } finally {
+        setIsGeneratingStrip(false);
+      }
+    }
+  };
+
+  // Handle Save / Share button
+  const handleSave = async () => {
+    if (!stripBlob || !stripUrl) return;
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const timeStr = Date.now().toString().slice(-4);
+    const filename = `photobooth-${dateStr}-${timeStr}.png`;
+    const file = new File([stripBlob], filename, { type: "image/png" });
+
+    // Try native Web Share API with files (iPhone Share Sheet -> "Save Image" to Photos)
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.canShare &&
+      navigator.canShare({ files: [file] })
+    ) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: "Photo Booth Strip",
+          text: "Here is our photo booth strip!",
+        });
+        showToast("Opened Share Sheet");
+        return;
+      } catch (err: unknown) {
+        const error = err as { name?: string };
+        if (error.name === "AbortError") {
+          // User closed share sheet without saving, do not treat as error
+          return;
+        }
+        console.warn("Share failed, falling back to download:", error);
+      }
+    }
+
+    // Fallback: Direct download for Laptop/Desktop or unsupported mobile browsers
+    try {
+      const a = document.createElement("a");
+      a.href = stripUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast("Photo strip saved to Downloads!");
+    } catch (err) {
+      console.error("Download failed:", err);
+      showToast("Could not download image");
+    }
+  };
+
+  // Retake: return to camera
+  const handleRetake = () => {
+    setCapturedPhotos([]);
+    setStripUrl(null);
+    setStripBlob(null);
+    setIsTakingPhotos(false);
+    setCountdown(null);
+    setCurrentPhotoIndex(0);
+    if (!isDemoMode) {
+      startCamera(facingMode);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="relative w-full h-full min-h-screen bg-black text-white select-none overflow-hidden">
+      <Toast message={toastMessage} />
+
+      {/* Permission Denied Screen */}
+      {hasPermission === false && (
+        <PermissionDeniedView
+          onRetry={() => startCamera(facingMode)}
+          onUseDemo={handleUseDemo}
+          errorType={permissionError}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
+
+      {/* Results View (when 4 photos are captured & strip generated) */}
+      {hasPermission !== false && stripUrl && (
+        <ResultsView
+          stripUrl={stripUrl}
+          activeFilter={activeFilter}
+          isGenerating={isGeneratingStrip}
+          onFilterChange={handleFilterChange}
+          onSave={handleSave}
+          onRetake={handleRetake}
+        />
+      )}
+
+      {/* Live Camera Viewfinder */}
+      {hasPermission !== false && !stripUrl && (
+        <CameraView
+          videoRef={videoRef}
+          facingMode={facingMode}
+          isTakingPhotos={isTakingPhotos}
+          currentPhotoIndex={currentPhotoIndex}
+          countdown={countdown}
+          isFlashing={isFlashing}
+          capturedPhotos={capturedPhotos}
+          soundEnabled={soundEnabled}
+          isDemoMode={isDemoMode}
+          demoFrameIndex={demoFrameIndex}
+          onShutterTap={startPhotoBoothSequence}
+          onFlipCamera={handleFlipCamera}
+          onToggleSound={() => setSoundEnabled((prev) => !prev)}
+        />
+      )}
     </div>
   );
 }
