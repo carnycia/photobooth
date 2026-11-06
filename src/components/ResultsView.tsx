@@ -47,12 +47,12 @@ export function ResultsView({
     }
   }, [stripUrl, isGenerating]);
 
-  // Coordinates of the 4 photos inside the vertical strip
+  // Coordinates of the 4 photos inside the vertical strip (squished 320:420 aspect ratio)
   const photoSlots = [
-    { index: 0, top: "1.72%", height: "21.41%" },
-    { index: 1, top: "24.17%", height: "21.41%" },
-    { index: 2, top: "46.62%", height: "21.41%" },
-    { index: 3, top: "69.07%", height: "21.41%" },
+    { index: 0, top: "1.01%", height: "22.89%" },
+    { index: 1, top: "24.51%", height: "22.89%" },
+    { index: 2, top: "48.02%", height: "22.89%" },
+    { index: 3, top: "71.52%", height: "22.89%" },
   ];
 
   return (

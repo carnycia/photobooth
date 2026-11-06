@@ -195,7 +195,7 @@ export default function PhotoBoothApp() {
     setStripBlob(cachedStripBlob);
   };
 
-  // Capture current video frame into low-res digicam data URL
+  // Capture current video frame into exact squished low-res preview format (320x420)
   const captureCurrentFrame = (): string => {
     if (isDemoMode) {
       return generateDemoFrame(demoFrameIndex);
@@ -206,9 +206,10 @@ export default function PhotoBoothApp() {
       return generateDemoFrame(demoFrameIndex);
     }
 
+    // Exact 320x420 canvas matching the preview dimensions and squish
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = 320;
+    canvas.height = 420;
     const ctx = canvas.getContext("2d");
     if (!ctx) return "";
 
@@ -218,6 +219,7 @@ export default function PhotoBoothApp() {
       ctx.scale(-1, 1);
     }
 
+    // Directly draw and squish the video into 320x420 matching the live preview
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     let processedCanvas = canvas;
@@ -225,26 +227,7 @@ export default function PhotoBoothApp() {
       processedCanvas = applyFisheyeToImage(canvas, canvas.width, canvas.height);
     }
 
-    // Authentic 2000s low-res digicam downscale (320px)
-    const lowW = 320;
-    const lowH = Math.round((processedCanvas.height / processedCanvas.width) * lowW);
-    const lowCanvas = document.createElement("canvas");
-    lowCanvas.width = lowW;
-    lowCanvas.height = lowH;
-    const lowCtx = lowCanvas.getContext("2d");
-    if (!lowCtx) return processedCanvas.toDataURL("image/jpeg", 0.9);
-    lowCtx.drawImage(processedCanvas, 0, 0, lowW, lowH);
-
-    // Nearest-neighbor upscale back to strip dimensions with crisp pixelation
-    const finalCanvas = document.createElement("canvas");
-    finalCanvas.width = processedCanvas.width;
-    finalCanvas.height = processedCanvas.height;
-    const finalCtx = finalCanvas.getContext("2d");
-    if (!finalCtx) return lowCanvas.toDataURL("image/jpeg", 0.9);
-    finalCtx.imageSmoothingEnabled = false;
-    finalCtx.drawImage(lowCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
-
-    return finalCanvas.toDataURL("image/jpeg", 0.9);
+    return processedCanvas.toDataURL("image/jpeg", 0.95);
   };
 
   // Sequence to take photos (either full 4 shots or single retake)

@@ -4,8 +4,8 @@ export function generateDemoFrame(frameIndex: number): string {
   if (typeof window === "undefined") return "";
 
   const canvas = document.createElement("canvas");
-  canvas.width = 960;
-  canvas.height = 720;
+  canvas.width = 320;
+  canvas.height = 420;
   const ctx = canvas.getContext("2d");
   if (!ctx) return "";
 

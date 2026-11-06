@@ -45,7 +45,7 @@ export async function createPhotoStrip(
   const photoGap = 34;
 
   const photoWidth = stripWidth - outerMarginX * 2; // 968px
-  const photoHeight = Math.round(photoWidth * 0.72); // 697px (~4:3 landscape ratio)
+  const photoHeight = Math.round(photoWidth * (420 / 320)); // 1270px (exact squished 320:420 preview aspect ratio)
 
   const photosTotalHeight =
     images.length * photoHeight + (images.length - 1) * photoGap;
@@ -67,7 +67,7 @@ export async function createPhotoStrip(
     context.filter = getFilterCss(f);
   }
 
-  // Draw each photo
+  // Draw each photo (exact squished preview representation)
   images.forEach((img, i) => {
     const photoY = outerMarginTop + i * (photoHeight + photoGap);
 
@@ -78,20 +78,20 @@ export async function createPhotoStrip(
     ctx.clip();
 
     if (filter === "fisheye") {
-      // First center crop onto temp canvas, then run fisheye barrel distortion
+      // Draw squished onto temp canvas, then run fisheye barrel distortion
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = photoWidth;
       tempCanvas.height = photoHeight;
       const tCtx = tempCanvas.getContext("2d");
       if (tCtx) {
-        drawImageProp(tCtx, img, 0, 0, photoWidth, photoHeight);
+        tCtx.drawImage(img, 0, 0, photoWidth, photoHeight);
         const fisheyeCanvas = applyFisheyeToImage(tempCanvas, photoWidth, photoHeight);
         ctx.drawImage(fisheyeCanvas, outerMarginX, photoY, photoWidth, photoHeight);
       }
     } else {
       applyCanvasFilter(ctx, filter);
-      // Center-crop (object-fit: cover) the source photo into the destination rect
-      drawImageProp(ctx, img, outerMarginX, photoY, photoWidth, photoHeight);
+      // Draw the exact squished frame into the slot
+      ctx.drawImage(img, outerMarginX, photoY, photoWidth, photoHeight);
     }
 
     ctx.restore();
